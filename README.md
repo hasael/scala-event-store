@@ -8,6 +8,7 @@ I will simulate a payment system CQRS, where wi will consume through rabbitMQ on
 {
   "transactionId": "guid",
   "amount": 3.2,
+  "userId" : "guid",
   "currency": "",
   "paymentData": {
     "paymentType": "",
@@ -22,6 +23,7 @@ I will simulate a payment system CQRS, where wi will consume through rabbitMQ on
 ```json
 {
   "transactionId": "guid",
+  "userId" : "guid",
   "amount": 3.2,
   "currency": "",
   "reason" : "",
@@ -38,6 +40,7 @@ I will simulate a payment system CQRS, where wi will consume through rabbitMQ on
 ```json
 {
   "transactionId": "guid",
+  "userId" : "guid",
   "amount": 3.2,
   "currency": "",
   "paymentType" : "",
@@ -46,3 +49,16 @@ I will simulate a payment system CQRS, where wi will consume through rabbitMQ on
 ```
 All these events will be persisted to the Repository.
 PaymentDeclined will also be mapped to PaymentFailed event and sent to another rabbitMQ queue (hypothetically consumed by an anti-fraud system ecc) 
+- PaymentFailed
+```json
+{
+  "transactionId": "guid",
+  "userId" : "guid",
+  "amount": 3.2,
+  "currency": "",
+  "reason" : "",
+  "paymentType" : "",
+  "panId" : "guid"
+  "transactionTime": "2020-03-02T18:12:17.523Z"
+}
+```
