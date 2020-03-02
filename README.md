@@ -4,8 +4,39 @@ Additionally, for certain events it will have additional behaviour like map and 
 I will simulate a payment system CQRS, where wi will consume through rabbitMQ one of the following ecents in json
 
 - PaymentAccepted
+{
+  "transactionId": "guid",
+  "amount": 3.2,
+  "currency": "",
+  "paymentData": {
+    "paymentType": "",
+    "pspId": "",
+    "userAccountId": 0,
+    "cardId": "guid"
+  },
+  "transactionTime": "2020-03-02T18:12:17.523Z"
+}
 - PaymentDeclined
+{
+  "transactionId": "guid",
+  "amount": 3.2,
+  "currency": "",
+  "reason" : "",
+  "paymentData": {
+    "paymentType": "",
+    "pspId": "",
+    "userAccountId": 0,
+    "cardId": "guid"
+  },
+  "transactionTime": "2020-03-02T18:12:17.523Z"
+}
 - PaymentPending
-
+{
+  "transactionId": "guid",
+  "amount": 3.2,
+  "currency": "",
+  "paymentType" : "",
+  "transactionTime": "2020-03-02T18:12:17.523Z"
+}
 All these events will be persisted to the Repository.
 PaymentDeclined will also be mapped to PaymentFailed event and sent to another rabbitMQ queue (hypothetically consumed by an anti-fraud system ecc) 
