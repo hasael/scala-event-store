@@ -58,7 +58,7 @@ PaymentDeclined will also be mapped to PaymentFailed event and sent to another r
   "currency": "",
   "reason" : "",
   "paymentType" : "",
-  "panId" : "guid"
+  "panId" : "guid",
   "transactionTime": "2020-03-02T18:12:17.523Z"
 }
 ```
