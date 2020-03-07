@@ -1,8 +1,8 @@
-package example
+package eventstore
 
 import com.rabbitmq.client.{CancelCallback, ConnectionFactory, DeliverCallback}
 
-object Hello  {
+object Consumer {
 
   def main(args: Array[String]) = {
     val QUEUE_NAME = "hello"
@@ -27,7 +27,7 @@ object Hello  {
     val autoAck = true
     channel.basicConsume(QUEUE_NAME, autoAck, callback, cancel)
 
-    while(true) {
+    while (true) {
       // we don't want to kill the receiver,
       // so we keep him alive waiting for more messages
       Thread.sleep(1000)
