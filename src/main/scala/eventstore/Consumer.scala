@@ -1,6 +1,8 @@
 package eventstore
 
 import com.rabbitmq.client.{CancelCallback, ConnectionFactory, DeliverCallback}
+import eventstore.events.PaymentAccepted
+import play.api.libs.json.Json
 
 object Consumer {
 
@@ -20,6 +22,11 @@ object Consumer {
     val callback: DeliverCallback = (consumerTag, delivery) => {
       val message = new String(delivery.getBody, "UTF-8")
       println(s"Received $message with tag $consumerTag")
+      val jsonObject = Json.parse(message)
+      val paymentAccepted : PaymentAccepted = jsonObject.as[PaymentAccepted]
+
+      val trxId: String = paymentAccepted.transactionId
+      println(s"$trxId")
     }
 
     val cancel: CancelCallback = consumerTag => {}
