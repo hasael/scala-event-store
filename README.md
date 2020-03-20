@@ -6,7 +6,7 @@ I will simulate a payment system CQRS, where wi will consume through rabbitMQ on
 - PaymentAccepted
 ```json
 {
-  "type":"PaymentAccepted",
+  "eventType":"PaymentAccepted",
   "transactionId": "guid",
   "amount": 3.2,
   "userId" : "guid",
@@ -23,7 +23,7 @@ I will simulate a payment system CQRS, where wi will consume through rabbitMQ on
 - PaymentDeclined
 ```json
 {
-  "type":"PaymentDeclined",
+  "eventType":"PaymentDeclined",
   "transactionId": "guid",
   "userId" : "guid",
   "amount": 3.2,
@@ -41,7 +41,7 @@ I will simulate a payment system CQRS, where wi will consume through rabbitMQ on
 - PaymentPending
 ```json
 {
-  "type":"PaymentPending",
+  "eventType":"PaymentPending",
   "transactionId": "guid",
   "userId" : "guid",
   "amount": 3.2,
@@ -55,7 +55,7 @@ PaymentDeclined will also be mapped to PaymentFailed event and sent to another r
 - PaymentFailed
 ```json
 {
-  "type":"PaymentFailed",
+  "eventType":"PaymentFailed",
   "transactionId": "guid",
   "userId" : "guid",
   "amount": 3.2,
