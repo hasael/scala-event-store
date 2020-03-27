@@ -1,28 +1,30 @@
 package eventstore.parsers
 
 import eventstore.events.{PaymentAccepted, PaymentDeclined, PaymentEvent, PaymentPending}
-import play.api.libs.json.{JsString, Json}
+import play.api.libs.json.{JsString, JsValue, Json}
 
 import scala.util.{Failure, Success, Try}
 
 object EventParser {
 
   def parseEvent(message: String): Try[PaymentEvent] = {
-    val jsonObject = Json.parse(message)
-    val jsEventType = jsonObject \ "eventType"
-    val eventType = jsEventType.toOption.flatMap(jsValue => jsValue match {
-      case JsString(value) => Some(value)
-      case _ => None
-    })
-
-    val event = eventType.flatMap(value => value match {
-      case "PaymentAccepted" => Some(jsonObject.as[PaymentAccepted])
-      case "PaymentDeclined" => Some(jsonObject.as[PaymentDeclined])
-      case "PaymentPending" => Some(jsonObject.as[PaymentPending])
-      case _ => None
-    })
-
-    event.map(ev => Success(ev))
-      .getOrElse(Failure(new Exception("Could not find event type")))
+    for {
+      jsonObject <- Try(Json.parse(message))
+      jsEventType <- getField(jsonObject, "eventType")
+      event <- parseFromEventType(jsEventType, jsonObject)
+    } yield event
   }
+
+  private def getField(jsonObject: JsValue, fieldName: String): Try[JsValue] = {
+    (jsonObject \ fieldName).toOption.map(ev => Success(ev))
+      .getOrElse(Failure(new Exception(s"Could not find field $fieldName")))
+  }
+
+  private def parseFromEventType(jsEventType: JsValue, jsonObject: JsValue): Try[PaymentEvent] =
+    jsEventType match {
+      case JsString("PaymentAccepted") => Try(jsonObject.as[PaymentAccepted])
+      case JsString("PaymentDeclined") => Try(jsonObject.as[PaymentDeclined])
+      case JsString("PaymentPending") => Try(jsonObject.as[PaymentPending])
+      case _ => Failure(new Exception("Event type field value was incorrect"))
+    }
 }
