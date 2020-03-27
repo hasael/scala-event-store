@@ -1,6 +1,6 @@
 package eventstore.parsers
 
-import eventstore.events.{PaymentAccepted, PaymentEvent}
+import eventstore.events.{PaymentAccepted, PaymentDeclined, PaymentEvent, PaymentPending}
 import play.api.libs.json.{JsString, Json}
 
 import scala.util.{Failure, Success, Try}
@@ -17,6 +17,8 @@ object EventParser {
 
     val event = eventType.flatMap(value => value match {
       case "PaymentAccepted" => Some(jsonObject.as[PaymentAccepted])
+      case "PaymentDeclined" => Some(jsonObject.as[PaymentDeclined])
+      case "PaymentPending" => Some(jsonObject.as[PaymentPending])
       case _ => None
     })
 
