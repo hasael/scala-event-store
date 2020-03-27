@@ -1,3 +1,9 @@
 package eventstore.events
 
-case class PaymentPending()
+import play.api.libs.json.Json
+
+case class PaymentPending(transactionId: String, amount: Double, userId: String, currency: String,
+                          paymentType: String, transactionTime: String) extends PaymentEvent
+object PaymentDeclined {
+  implicit val userJsonFormat = Json.format[PaymentPending]
+}
