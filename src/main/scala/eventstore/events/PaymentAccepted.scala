@@ -9,7 +9,10 @@ object PaymentData {
 }
 
 case class PaymentAccepted(transactionId: String, amount: Double, userId: String, currency: String,
-                           paymentData: PaymentData, transactionTime: String) extends PaymentEvent
+                           paymentData: PaymentData, transactionTime: String) extends PaymentEvent {
+
+  override def eventName: String = s"PaymentAccepted: $transactionId"
+}
 object PaymentAccepted {
   implicit val userJsonFormat = Json.format[PaymentAccepted]
 }

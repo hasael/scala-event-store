@@ -1,15 +1,19 @@
 package eventstore
 
 import com.rabbitmq.client.{CancelCallback, ConnectionFactory, DeliverCallback}
+import eventstore.domain.EventProcessor
 import eventstore.events.PaymentAccepted
 import eventstore.parsers.EventParser
-import play.api.libs.json.Json
+import eventstore.repositories.CassandraRepository
+
+import scala.util.{Failure, Success, Try}
 
 object Consumer {
 
   def main(args: Array[String]) = {
-    val QUEUE_NAME = "hello"
+    val eventProcessor = new EventProcessor(new CassandraRepository())
 
+    val QUEUE_NAME = "hello"
     val factory = new ConnectionFactory()
     factory.setHost("localhost")
 
@@ -24,15 +28,16 @@ object Consumer {
       val message = new String(delivery.getBody, "UTF-8")
       println(s"Received $message with tag $consumerTag")
 
-      val paymentEvent = EventParser.parseEvent(message)
-        .foreach(ev => ev match {
-          case paymentAccepted: PaymentAccepted => {
-            val trxId: String = paymentAccepted.transactionId
-            println(s"parsed paymentAccepted with id $trxId")
-          }
-          case _ => println("Not parsed")
-        })
+      val printMessage = for {
+        paymentEvent <- EventParser.parseEvent(message)
+        _ <- eventProcessor.processEvent(paymentEvent)
+        printMessage <- Try("Correctly parsed event " + paymentEvent.eventName)
+      } yield printMessage
 
+      printMessage match {
+        case Success(value) => println(value)
+        case Failure(exception) => println("Error: " + exception.getMessage)
+      }
     }
 
     val cancel: CancelCallback = consumerTag => {}
