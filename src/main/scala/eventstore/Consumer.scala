@@ -2,7 +2,6 @@ package eventstore
 
 import com.rabbitmq.client.{CancelCallback, ConnectionFactory, DeliverCallback}
 import eventstore.domain.EventProcessor
-import eventstore.events.PaymentAccepted
 import eventstore.parsers.EventParser
 import eventstore.repositories.CassandraRepository
 
