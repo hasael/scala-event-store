@@ -1,5 +1,6 @@
 package eventstore
 
+import java.time.{Instant, ZoneId}
 import java.util.UUID
 
 import com.fasterxml.jackson.annotation.ObjectIdGenerators.UUIDGenerator
@@ -45,17 +46,49 @@ object Publisher {
 
   private def randomPaymentAccepted(): String = {
     val transactionId = UUID.randomUUID().toString
-    "{\n  \"eventType\":\"PaymentAccepted\",\n  \"transactionId\": \"" + transactionId + "\",\n  \"amount\": 3.2,\n  \"userId\" : \"guid\",\n  \"currency\": \"\",\n  \"paymentData\": {\n    \"paymentType\": \"\",\n    \"pspId\": \"\",\n    \"userAccountId\": 0,\n    \"cardId\": \"guid\"\n  },\n  \"transactionTime\": \"2020-03-02T18:12:17.523Z\"\n}"
+    val amount = Random.nextInt(1500) + 1
+    val userId = UUID.randomUUID().toString
+    val cardId = UUID.randomUUID().toString
+    val transactionTime = Instant.now().minusSeconds(Random.nextInt(1000000)).atZone(ZoneId.systemDefault()).toString
+    val pspId = Random.nextInt(7)
+    val currencies = Seq("USD", "EUR", "GBP", "AUD", "CAD")
+    val paymentTypes = Seq("CREDIT CARD", "PAYPAL", "ALIPAY", "WIRE TRANSFER")
+    val currency = currencies(Random.nextInt(5))
+    val paymentType = paymentTypes(Random.nextInt(4))
+    "{\n  \"eventType\":\"PaymentAccepted\",\n  \"transactionId\": \"" + transactionId + "\",\n  \"amount\": " + amount + ",\n  \"userId\" : \"" + userId + "\",\n  " +
+      "\"currency\": \"" + currency + "\",\n  \"paymentData\": {\n    \"paymentType\": \"" + paymentType + "\",\n    \"pspId\": \"" + pspId + "\",\n    \"userAccountId\": 0,\n    " +
+      "\"cardId\": \"" + cardId + "\"\n  },\n  \"transactionTime\": \"" + transactionTime + "\"\n}"
   }
 
   private def randomPaymentDeclined(): String = {
     val transactionId = UUID.randomUUID().toString
-    "{\n  \"eventType\":\"PaymentDeclined\",\n  \"transactionId\": \"" + transactionId + "\",\n  \"userId\" : \"guid\",\n  \"amount\": 3.2,\n  \"currency\": \"\",\n  \"reason\" : \"\",\n  \"paymentData\": {\n    \"paymentType\": \"\",\n    \"pspId\": \"\",\n    \"userAccountId\": 0,\n    \"cardId\": \"guid\"\n  },\n  \"transactionTime\": \"2020-03-02T18:12:17.523Z\"\n}"
+    val amount = Random.nextInt(1500) + 1
+    val userId = UUID.randomUUID().toString
+    val cardId = UUID.randomUUID().toString
+    val transactionTime = Instant.now().minusSeconds(Random.nextInt(1000000)).atZone(ZoneId.systemDefault()).toString
+    val pspId = Random.nextInt(7)
+    val currencies = Seq("USD", "EUR", "GBP", "AUD", "CAD")
+    val paymentTypes = Seq("CREDIT CARD", "PAYPAL", "ALIPAY", "WIRE TRANSFER")
+    val currency = currencies(Random.nextInt(5))
+    val paymentType = paymentTypes(Random.nextInt(4))
+    "{\n  \"eventType\":\"PaymentDeclined\",\n  \"transactionId\": \"" + transactionId + "\",\n  " +
+      "\"userId\" : \"" + userId + "\",\n  \"amount\": " + amount + ",\n  \"currency\": \"" + currency + "\",\n  \"reason\" : \"\",\n  " +
+      "\"paymentData\": {\n    \"paymentType\": \"" + paymentType + "\",\n    \"pspId\": \"" + pspId + "\",\n    " +
+      "\"userAccountId\": 0,\n    \"cardId\": \"" + cardId + "\"\n  },\n  " +
+      "\"transactionTime\": \"" + transactionTime + "\"\n}"
   }
 
   private def randomPaymentPending(): String = {
     val transactionId = UUID.randomUUID().toString
-    "{\n  \"eventType\":\"PaymentPending\",\n  \"transactionId\": \"" + transactionId + "\",\n  \"userId\" : \"guid\",\n  \"amount\": 3.2,\n  \"currency\": \"\",\n  \"paymentType\" : \"\",\n  \"transactionTime\": \"2020-03-02T18:12:17.523Z\"\n}"
+    val userId = UUID.randomUUID().toString
+    val transactionTime = Instant.now().minusSeconds(Random.nextInt(1000000)).atZone(ZoneId.systemDefault()).toString
+    val currencies = Seq("USD", "EUR", "GBP", "AUD", "CAD")
+    val paymentTypes = Seq("CREDIT CARD", "PAYPAL", "ALIPAY", "WIRE TRANSFER")
+    val currency = currencies(Random.nextInt(5))
+    val paymentType = paymentTypes(Random.nextInt(4))
+    "{\n  \"eventType\":\"PaymentPending\",\n  \"transactionId\": \"" + transactionId + "\",\n  " +
+      "\"userId\" : \"" + userId + "\",\n  \"amount\": 3.2,\n  \"currency\": \"" + currency + "\",\n  \"paymentType\" : \"" + paymentType + "\",\n  " +
+      "\"transactionTime\": \"" + transactionTime + "\"\n}"
   }
 
 }
