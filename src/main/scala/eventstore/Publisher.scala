@@ -3,8 +3,8 @@ package eventstore
 import java.time.{Instant, ZoneId}
 import java.util.UUID
 
-import com.fasterxml.jackson.annotation.ObjectIdGenerators.UUIDGenerator
 import com.rabbitmq.client.ConnectionFactory
+import com.typesafe.config.ConfigFactory
 
 import scala.util.Random
 
@@ -12,9 +12,18 @@ object Publisher {
 
   def main(args: Array[String]) = {
 
-    val QUEUE_NAME = "hello"
+
+    val QUEUE_NAME = ConfigFactory.load().getString("rabbit.payment.queue")
+    val RABBIT_HOST = ConfigFactory.load().getString("rabbit.payment.host")
+    val RABBIT_PORT = ConfigFactory.load().getInt("rabbit.payment.port")
+    val RABBIT_USER = ConfigFactory.load().getString("rabbit.payment.username")
+    val RABBIT_PASS = ConfigFactory.load().getString("rabbit.payment.password")
+
     val factory = new ConnectionFactory()
-    factory.setHost("localhost")
+    factory.setHost(RABBIT_HOST)
+    factory.setPort(RABBIT_PORT)
+    factory.setUsername(RABBIT_USER)
+    factory.setPassword(RABBIT_PASS)
 
     val connection = factory.newConnection()
     val channel = connection.createChannel()
