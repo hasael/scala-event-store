@@ -36,14 +36,13 @@ object Consumer {
       val message = new String(delivery.getBody, "UTF-8")
       println(s"Received $message with tag $consumerTag")
 
-      val printMessage = for {
+      val paymentEvent = for {
         paymentEvent <- EventParser.parseEvent(message)
         _ <- eventProcessor.processEvent(paymentEvent)
-        printMessage <- Try("Correctly parsed event ")
-      } yield printMessage
+      } yield paymentEvent
 
-      printMessage match {
-        case Success(value) => println(value)
+      paymentEvent match {
+        case Success(_) => println("Correctly parsed event")
         case Failure(exception) => println("Error: " + exception.getMessage)
       }
     }
