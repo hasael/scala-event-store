@@ -1,13 +1,12 @@
 package eventstore
 
-import com.rabbitmq.client.{CancelCallback, ConnectionFactory, DeliverCallback}
+import com.typesafe.config.ConfigFactory
 import eventstore.domain.EventProcessor
 import eventstore.parsers.EventParser
+import eventstore.rabbitmq.{RabbitConsumer, RabbitPublisher}
 import eventstore.repositories.CassandraRepository
 
-import scala.util.{Failure, Success, Try}
-import com.typesafe.config.ConfigFactory
-import eventstore.rabbitmq.RabbitPublisher
+import scala.util.{Failure, Success}
 
 object Consumer {
 
@@ -28,24 +27,14 @@ object Consumer {
     val rabbitFraudPublisher = RabbitPublisher(FRAUD_RABBIT_HOST, FRAUD_RABBIT_USER, FRAUD_RABBIT_PASS, FRAUD_RABBIT_PORT, "", FRAUD_QUEUE_NAME)
     rabbitFraudPublisher.declareQueue()
 
+    val rabbitConsumer = RabbitConsumer(RABBIT_HOST, RABBIT_USER, RABBIT_PASS, RABBIT_PORT, "", QUEUE_NAME)
+    rabbitConsumer.declareQueue()
+
     val eventProcessor = new EventProcessor(new CassandraRepository(), rabbitFraudPublisher)
-    val factory = new ConnectionFactory()
-    factory.setHost(RABBIT_HOST)
-    factory.setPort(RABBIT_PORT)
-    factory.setUsername(RABBIT_USER)
-    factory.setPassword(RABBIT_PASS)
 
-    val connection = factory.newConnection()
-    val channel = connection.createChannel()
+    println(s"Creating consumer for messages on $QUEUE_NAME")
 
-    channel.queueDeclare(QUEUE_NAME, false, false, false, null)
-
-    println(s"waiting for messages on $QUEUE_NAME")
-
-    val callback: DeliverCallback = (consumerTag, delivery) => {
-      val message = new String(delivery.getBody, "UTF-8")
-      println(s"Received $message with tag $consumerTag")
-
+    val onMessage = (message: String) => {
       val paymentEvent = for {
         paymentEvent <- EventParser.parseEvent(message)
         _ <- eventProcessor.processEvent(paymentEvent)
@@ -57,18 +46,15 @@ object Consumer {
       }
     }
 
-    val cancel: CancelCallback = consumerTag => {}
+    val onCancel = (consumerTag: String) => {}
 
-    val autoAck = true
-    channel.basicConsume(QUEUE_NAME, autoAck, callback, cancel)
+    rabbitConsumer.startConsumer(QUEUE_NAME, autoAck = true, onMessage, onCancel)
 
     while (true) {
       // we don't want to kill the receiver,
       // so we keep him alive waiting for more messages
       Thread.sleep(1000)
     }
-
-    channel.close()
-    connection.close()
+    rabbitConsumer.onClose()
   }
 }
