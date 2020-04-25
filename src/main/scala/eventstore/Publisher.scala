@@ -5,6 +5,7 @@ import java.util.UUID
 
 import com.rabbitmq.client.ConnectionFactory
 import com.typesafe.config.ConfigFactory
+import eventstore.rabbitmq.RabbitPublisher
 
 import scala.util.Random
 
@@ -12,38 +13,29 @@ object Publisher {
 
   def main(args: Array[String]) = {
 
-
     val QUEUE_NAME = ConfigFactory.load().getString("rabbit.payment.queue")
     val RABBIT_HOST = ConfigFactory.load().getString("rabbit.payment.host")
     val RABBIT_PORT = ConfigFactory.load().getInt("rabbit.payment.port")
     val RABBIT_USER = ConfigFactory.load().getString("rabbit.payment.username")
     val RABBIT_PASS = ConfigFactory.load().getString("rabbit.payment.password")
 
-    val factory = new ConnectionFactory()
-    factory.setHost(RABBIT_HOST)
-    factory.setPort(RABBIT_PORT)
-    factory.setUsername(RABBIT_USER)
-    factory.setPassword(RABBIT_PASS)
+    val rabbitPublisher = RabbitPublisher(RABBIT_HOST, RABBIT_USER, RABBIT_PASS, RABBIT_PORT)
 
-    val connection = factory.newConnection()
-    val channel = connection.createChannel()
-
-    channel.queueDeclare(QUEUE_NAME, false, false, false, null)
+    rabbitPublisher.declareQueue(QUEUE_NAME)
 
     while (true) {
       println(s"publishing messages on $QUEUE_NAME")
-      val message = getRandomEvent()
+      val message = createRandomEvent()
       val exchange = ""
-      channel.basicPublish(exchange, QUEUE_NAME, null, message.getBytes)
-      println(s"sent message $message")
 
+      rabbitPublisher.publish(exchange, QUEUE_NAME, message)
+
+      println(s"sent message $message")
       Thread.sleep(2000)
     }
-    channel.close()
-    connection.close()
   }
 
-  private def getRandomEvent(): String = {
+  private def createRandomEvent(): String = {
     val randInt = Random.nextInt(3)
     if (randInt == 0)
       randomPaymentAccepted()
