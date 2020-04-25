@@ -1,8 +1,11 @@
 package eventstore.rabbitmq
 
 import com.rabbitmq.client.ConnectionFactory
+import eventstore.domain.MessagePublisher
 
-class RabbitPublisher(hostName: String, user: String, pass: String, port: Int) {
+import scala.util.Try
+
+class RabbitPublisher(hostName: String, user: String, pass: String, port: Int, exchange: String, queueName: String) extends MessagePublisher{
   val factory = new ConnectionFactory()
   factory.setHost(hostName)
   factory.setPort(port)
@@ -12,14 +15,13 @@ class RabbitPublisher(hostName: String, user: String, pass: String, port: Int) {
   val connection = factory.newConnection()
   val channel = connection.createChannel()
 
-  def declareQueue(queueName: String) = channel.queueDeclare(queueName, false, false, false, null)
+  def declareQueue() = channel.queueDeclare(queueName, false, false, false, null)
 
-  def publish(exchange: String, queueName: String, message: String) = {
-    channel.basicPublish(exchange, queueName, null, message.getBytes)
+  def publish(message: String): Try[Unit] = {
+    Try(channel.basicPublish(exchange, queueName, null, message.getBytes))
   }
 
 }
 
 object RabbitPublisher {
-  def apply(hostName: String, user: String, pass: String, port: Int): RabbitPublisher = new RabbitPublisher(hostName, user, pass, port)
-}
+  def apply(hostName: String, user: String, pass: String, port: Int, exchange: String, queueName: String): RabbitPublisher = new RabbitPublisher(hostName, user, pass, port, exchange, queueName)}

@@ -7,11 +7,11 @@ import eventstore.repositories.CassandraRepository
 
 import scala.util.{Failure, Success, Try}
 import com.typesafe.config.ConfigFactory
+import eventstore.rabbitmq.RabbitPublisher
 
 object Consumer {
 
   def main(args: Array[String]) = {
-    val eventProcessor = new EventProcessor(new CassandraRepository())
 
     val QUEUE_NAME = ConfigFactory.load().getString("rabbit.payment.queue")
     val RABBIT_HOST = ConfigFactory.load().getString("rabbit.payment.host")
@@ -19,6 +19,16 @@ object Consumer {
     val RABBIT_USER = ConfigFactory.load().getString("rabbit.payment.username")
     val RABBIT_PASS = ConfigFactory.load().getString("rabbit.payment.password")
 
+    val FRAUD_QUEUE_NAME = ConfigFactory.load().getString("rabbit.antifraud.queue")
+    val FRAUD_RABBIT_HOST = ConfigFactory.load().getString("rabbit.antifraud.host")
+    val FRAUD_RABBIT_PORT = ConfigFactory.load().getInt("rabbit.antifraud.port")
+    val FRAUD_RABBIT_USER = ConfigFactory.load().getString("rabbit.antifraud.username")
+    val FRAUD_RABBIT_PASS = ConfigFactory.load().getString("rabbit.antifraud.password")
+
+    val rabbitFraudPublisher = RabbitPublisher(FRAUD_RABBIT_HOST, FRAUD_RABBIT_USER, FRAUD_RABBIT_PASS, FRAUD_RABBIT_PORT, "", FRAUD_QUEUE_NAME)
+    rabbitFraudPublisher.declareQueue()
+
+    val eventProcessor = new EventProcessor(new CassandraRepository(), rabbitFraudPublisher)
     val factory = new ConnectionFactory()
     factory.setHost(RABBIT_HOST)
     factory.setPort(RABBIT_PORT)
