@@ -1,0 +1,3 @@
+FROM openjdk:latest
+COPY publisher.jar publisher.jar
+CMD java -jar publisher.jar

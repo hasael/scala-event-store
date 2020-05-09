@@ -8,9 +8,9 @@ import eventstore.repositories.CassandraRepository
 
 import scala.util.{Failure, Success}
 
-object Consumer {
+object Consumer  {
 
-  def main(args: Array[String]) = {
+   def main(args: Array[String]) = {
 
     val QUEUE_NAME = ConfigFactory.load().getString("rabbit.payment.queue")
     val RABBIT_HOST = ConfigFactory.load().getString("rabbit.payment.host")

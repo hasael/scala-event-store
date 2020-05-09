@@ -8,9 +8,9 @@ import eventstore.rabbitmq.RabbitPublisher
 
 import scala.util.Random
 
-object Publisher {
+object Publisher extends App {
 
-  def main(args: Array[String]) = {
+  override def main(args: Array[String]) = {
 
     val QUEUE_NAME = ConfigFactory.load().getString("rabbit.payment.queue")
     val RABBIT_HOST = ConfigFactory.load().getString("rabbit.payment.host")

@@ -1,0 +1,17 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: scala-consumer
+spec:
+  selector:
+    matchLabels:
+      app: scala-consumer
+  replicas: 0
+  template:
+    metadata:
+      labels:
+        app: scala-consumer
+    spec:
+      containers:
+      - name: scala-consumer
+        image: elmanhasa/scala-consumer:latest

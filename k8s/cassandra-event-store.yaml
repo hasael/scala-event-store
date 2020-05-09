@@ -1,0 +1,31 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: cassandra-event-store
+  labels:
+    app: cassandra-event-store
+spec:
+  containers:
+  - name: cassandra
+    image: cassandra:latest
+    volumeMounts:
+      - name: cassandra-persistence
+        mountPath: /var/lib/cassandra/
+  volumes:
+    - name: cassandra-persistence
+      hostPath:
+        path: /mnt/cassandra/events
+        type: DirectoryOrCreate
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: cassandra-event-store
+spec:
+  selector:
+    app: cassandra-event-store
+  ports:
+    - name: connection
+      port: 9042
+      nodePort: 30050
+  type: NodePort
