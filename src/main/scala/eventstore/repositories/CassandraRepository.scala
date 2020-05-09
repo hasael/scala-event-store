@@ -8,7 +8,7 @@ import play.api.libs.json.Json
 
 import scala.util.Try
 
-case class Events(id: UUID, content: String, amount: BigDecimal, currency: String, eventType: String, paymentType: String,
+case class Events(id: UUID, content: String, amount: Double, currency: String, eventType: String, paymentType: String,
                   transactionId: UUID, transactionTime: String)
 
 class CassandraRepository {
