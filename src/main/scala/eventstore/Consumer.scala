@@ -24,13 +24,19 @@ object Consumer {
     val FRAUD_RABBIT_USER = ConfigFactory.load().getString("rabbit.antifraud.username")
     val FRAUD_RABBIT_PASS = ConfigFactory.load().getString("rabbit.antifraud.password")
 
+    val MYSQL_MODELS_HOST = ConfigFactory.load().getString("mysql.models.host")
+    val MYSQL_MODELS_PORT = ConfigFactory.load().getInt("mysql.models.port")
+    val MYSQL_MODELS_USER = ConfigFactory.load().getString("mysql.models.username")
+    val MYSQL_MODELS_PASSWORD = ConfigFactory.load().getString("mysql.models.password")
+    val MYSQL_MODELS_SCHEMA = ConfigFactory.load().getString("mysql.models.schema")
+
     val rabbitFraudPublisher = RabbitPublisher(FRAUD_RABBIT_HOST, FRAUD_RABBIT_USER, FRAUD_RABBIT_PASS, FRAUD_RABBIT_PORT, "", FRAUD_QUEUE_NAME)
     rabbitFraudPublisher.declareQueue()
 
     val rabbitConsumer = RabbitConsumer(RABBIT_HOST, RABBIT_USER, RABBIT_PASS, RABBIT_PORT, "", QUEUE_NAME)
     rabbitConsumer.declareQueue()
 
-    val sqlRepository = new SqlRepository()
+    val sqlRepository = new SqlRepository(MYSQL_MODELS_HOST, MYSQL_MODELS_PORT, MYSQL_MODELS_SCHEMA, MYSQL_MODELS_USER, MYSQL_MODELS_PASSWORD)
 
     val eventProcessor = new EventProcessor(new CassandraRepository(), sqlRepository, rabbitFraudPublisher)
 
