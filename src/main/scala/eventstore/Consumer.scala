@@ -4,13 +4,13 @@ import com.typesafe.config.ConfigFactory
 import eventstore.domain.EventProcessor
 import eventstore.parsers.EventParser
 import eventstore.rabbitmq.{RabbitConsumer, RabbitPublisher}
-import eventstore.repositories.CassandraRepository
+import eventstore.repositories.{CassandraRepository, SqlRepository}
 
 import scala.util.{Failure, Success}
 
-object Consumer  {
+object Consumer {
 
-   def main(args: Array[String]) = {
+  def main(args: Array[String]) = {
 
     val QUEUE_NAME = ConfigFactory.load().getString("rabbit.payment.queue")
     val RABBIT_HOST = ConfigFactory.load().getString("rabbit.payment.host")
@@ -30,7 +30,9 @@ object Consumer  {
     val rabbitConsumer = RabbitConsumer(RABBIT_HOST, RABBIT_USER, RABBIT_PASS, RABBIT_PORT, "", QUEUE_NAME)
     rabbitConsumer.declareQueue()
 
-    val eventProcessor = new EventProcessor(new CassandraRepository(), rabbitFraudPublisher)
+    val sqlRepository = new SqlRepository()
+
+    val eventProcessor = new EventProcessor(new CassandraRepository(), sqlRepository, rabbitFraudPublisher)
 
     println(s"Creating consumer for messages on $QUEUE_NAME")
 

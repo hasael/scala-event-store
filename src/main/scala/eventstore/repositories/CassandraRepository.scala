@@ -2,7 +2,8 @@ package eventstore.repositories
 
 import java.util.UUID
 
-import eventstore.events.{PaymentAccepted, PaymentDeclined, PaymentEvent, PaymentPending}
+import eventstore.domain.EventsRepository
+import eventstore.events.{PaymentAccepted, PaymentDeclined, PaymentPending}
 import io.getquill.{CassandraSyncContext, SnakeCase}
 import play.api.libs.json.Json
 
@@ -11,7 +12,7 @@ import scala.util.Try
 case class Events(id: UUID, content: String, amount: Double, currency: String, eventType: String, paymentType: String,
                   transactionId: UUID, transactionTime: String)
 
-class CassandraRepository {
+class CassandraRepository extends EventsRepository{
   lazy val ctx = new CassandraSyncContext(SnakeCase, "ctx")
 
   import ctx._
