@@ -12,8 +12,7 @@ class SqlRepository(host: String, port: Int, schema: String, username: String, p
 
     val url = "jdbc:mysql://" + host + ":" + port + "/" + schema
     val connection = DriverManager.getConnection(url, username, password)
-
-    val statement = connection.prepareStatement("INSERT INTO TRANSACTIONS VALUES(NULL, ?, ?, ?, ?, ?, ?)")
+       val statement = connection.prepareStatement("REPLACE INTO TRANSACTIONS VALUES( ?, ?, ?, ?, ?, ?)")
     statement.setString(1, transactionMode.transactionId)
     statement.setDouble(2, transactionMode.amount)
     statement.setString(3, transactionMode.currency)
