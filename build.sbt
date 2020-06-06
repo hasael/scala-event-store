@@ -13,5 +13,5 @@ lazy val root = (project in file("."))
     libraryDependencies += "com.rabbitmq" % "amqp-client" % "5.8.0",
     libraryDependencies += "com.typesafe.play" %% "play-json" % playVersion,
     libraryDependencies += "io.getquill" %% "quill-cassandra" % "3.5.1",
-      libraryDependencies += "mysql" % "mysql-connector-java" % "8.0.20"
+    libraryDependencies += "mysql" % "mysql-connector-java" % "8.0.20"
   )

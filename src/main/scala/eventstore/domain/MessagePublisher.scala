@@ -1,7 +1,7 @@
 package eventstore.domain
 
-import scala.util.Try
+import scala.concurrent.Future
 
 trait MessagePublisher {
-  def publish(message: String): Try[Unit]
+  def publish(message: String): Future[Unit]
 }

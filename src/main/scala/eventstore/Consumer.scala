@@ -6,7 +6,9 @@ import eventstore.parsers.EventParser
 import eventstore.rabbitmq.{RabbitConsumer, RabbitPublisher}
 import eventstore.repositories.{CassandraRepository, SqlRepository}
 
+import scala.concurrent.Future
 import scala.util.{Failure, Success}
+import eventstore.context.FutureContext._
 
 object Consumer {
 
@@ -44,14 +46,15 @@ object Consumer {
 
     val onMessage = (message: String) => {
       val paymentEvent = for {
-        paymentEvent <- EventParser.parseEvent(message)
-        _ <- eventProcessor.processEvent(paymentEvent)
-      } yield paymentEvent
+        event <- Future.fromTry(EventParser.parseEvent(message))
+        _ <- eventProcessor.processEvent(event)
+      } yield event
 
-      paymentEvent match {
+      paymentEvent.onComplete {
         case Success(_) => println("Correctly parsed event")
         case Failure(exception) => println("Error: " + exception.getMessage)
       }
+
     }
 
     val onCancel = (consumerTag: String) => {}

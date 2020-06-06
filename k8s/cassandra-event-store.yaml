@@ -1,21 +1,29 @@
-apiVersion: v1
-kind: Pod
+apiVersion: apps/v1
+kind: Deployment
 metadata:
   name: cassandra-event-store
-  labels:
-    app: cassandra-event-store
 spec:
-  containers:
-  - name: cassandra
-    image: cassandra:latest
-    volumeMounts:
-      - name: cassandra-persistence
-        mountPath: /var/lib/cassandra/
-  volumes:
-    - name: cassandra-persistence
-      hostPath:
-        path: /mnt/cassandra/events
-        type: DirectoryOrCreate
+  selector:
+    matchLabels:
+      app: cassandra-event-store
+  replicas: 1
+  template:
+    metadata:
+      name: cassandra-event-store
+      labels:
+        app: cassandra-event-store
+    spec:
+      containers:
+      - name: cassandra
+        image: cassandra:latest
+        volumeMounts:
+          - name: cassandra-persistence
+            mountPath: /var/lib/cassandra/
+      volumes:
+        - name: cassandra-persistence
+          hostPath:
+            path: /mnt/cassandra/events
+            type: DirectoryOrCreate
 ---
 apiVersion: v1
 kind: Service

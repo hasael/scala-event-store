@@ -6,7 +6,8 @@ import java.util.UUID
 import com.typesafe.config.ConfigFactory
 import eventstore.rabbitmq.RabbitPublisher
 
-import scala.util.Random
+import scala.util.{Failure, Random, Success}
+import eventstore.context.FutureContext._
 
 object Publisher extends App {
 
@@ -27,10 +28,10 @@ object Publisher extends App {
       println(s"publishing messages on $QUEUE_NAME")
       val message = createRandomEvent()
 
-      rabbitPublisher.publish(message)
-        .fold(error => println(s"error publishing message $message. Error " + error.getMessage),
-          _ => println(s"sent message $message"))
-
+      rabbitPublisher.publish(message).onComplete {
+        case Failure(error) => println(s"error publishing message $message. Error " + error.getMessage)
+        case Success(_) => println(s"sent message $message")
+      }
       Thread.sleep(2000)
     }
   }

@@ -18,6 +18,15 @@ spec:
         env:
         - name: MYSQL_ROOT_PASSWORD
           value: "Password1!"
+        volumeMounts:
+          - name: mysql-persistence
+            mountPath: /var/lib/mysql/
+      volumes:
+        - name: mysql-persistence
+          hostPath:
+            path: /mnt/mysql/events
+            type: DirectoryOrCreate
+
 
 ---
 apiVersion: v1

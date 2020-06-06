@@ -2,8 +2,8 @@ package eventstore.domain
 
 import eventstore.readmodels.TransactionModel
 
-import scala.util.Try
+import scala.concurrent.Future
 
 trait ModelsRepository {
-  def upsertTransaction(transactionMode: TransactionModel): Try[Unit]
+  def upsertTransaction(transactionMode: TransactionModel): Future[Unit]
 }
