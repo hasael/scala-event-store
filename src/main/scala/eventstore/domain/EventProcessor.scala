@@ -39,11 +39,11 @@ class EventProcessor(eventsRepository: EventsRepository, modelsRepository: Model
   }
 
   private def handlePaymentDeclined(paymentDeclined: PaymentDeclined): Future[Unit] = {
-    for {
-      _ <- eventsRepository.insertPaymentDeclined(paymentDeclined)
-      _ <- modelsRepository.upsertTransaction(eventToReadModel(paymentDeclined))
-      result <- publishMessage(paymentDeclined)
-    } yield result
+    Future.sequence(Vector(
+      eventsRepository.insertPaymentDeclined(paymentDeclined),
+      modelsRepository.upsertTransaction(eventToReadModel(paymentDeclined)),
+      publishMessage(paymentDeclined)
+    )).map(_ => Unit)
   }
 
   private def publishMessage(paymentDeclined: PaymentDeclined): Future[Unit] = {
@@ -54,16 +54,16 @@ class EventProcessor(eventsRepository: EventsRepository, modelsRepository: Model
   }
 
   private def handlePaymentAccepted(paymentAccepted: PaymentAccepted): Future[Unit] = {
-    for {
-      _ <- eventsRepository.insertPaymentAccepted(paymentAccepted)
-      result <- modelsRepository.upsertTransaction(eventToReadModel(paymentAccepted))
-    } yield result
+    Future.sequence(Vector(
+      eventsRepository.insertPaymentAccepted(paymentAccepted),
+      modelsRepository.upsertTransaction(eventToReadModel(paymentAccepted))
+    )).map(_ => Unit)
   }
 
   private def handlePaymentPending(paymentPending: PaymentPending): Future[Unit] = {
-    for {
-      _ <- eventsRepository.insertPaymentPending(paymentPending)
-      result <- modelsRepository.upsertTransaction(eventToReadModel(paymentPending))
-    } yield result
+    Future.sequence(Vector(
+      eventsRepository.insertPaymentPending(paymentPending),
+      modelsRepository.upsertTransaction(eventToReadModel(paymentPending))
+    )).map(_ => Unit)
   }
 }

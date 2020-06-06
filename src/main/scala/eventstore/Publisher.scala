@@ -4,10 +4,12 @@ import java.time.{Instant, ZoneId}
 import java.util.UUID
 
 import com.typesafe.config.ConfigFactory
+import eventstore.context.FutureContext._
 import eventstore.rabbitmq.RabbitPublisher
 
+import scala.concurrent.Await
+import scala.concurrent.duration.Duration
 import scala.util.{Failure, Random, Success}
-import eventstore.context.FutureContext._
 
 object Publisher extends App {
 
@@ -27,11 +29,12 @@ object Publisher extends App {
     while (true) {
       println(s"publishing messages on $QUEUE_NAME")
       val message = createRandomEvent()
-
-      rabbitPublisher.publish(message).onComplete {
+      val task = rabbitPublisher.publish(message)
+      task.onComplete {
         case Failure(error) => println(s"error publishing message $message. Error " + error.getMessage)
         case Success(_) => println(s"sent message $message")
       }
+      Await.result(task, Duration.Inf)
       Thread.sleep(2000)
     }
   }
