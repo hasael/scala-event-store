@@ -1,6 +1,9 @@
 package eventstore.domain
 
+import cats.instances.future._
 import eventstore.context.FutureContext._
+import eventstore.context.Syntax._
+import eventstore.context.Types.LoggedFuture
 import eventstore.events._
 import eventstore.readmodels.TransactionModel
 import play.api.libs.json.Json
@@ -10,12 +13,12 @@ import scala.util.Try
 
 class EventProcessor(eventsRepository: EventsRepository, modelsRepository: ModelsRepository, fraudCheckPublisher: MessagePublisher) {
 
-  def processEvent(paymentEvent: PaymentEvent): Future[Unit] = {
+  def processEvent(paymentEvent: PaymentEvent): LoggedFuture[Unit] = {
     paymentEvent match {
-      case paymentAccepted: PaymentAccepted => handlePaymentAccepted(paymentAccepted)
-      case paymentDeclined: PaymentDeclined => handlePaymentDeclined(paymentDeclined)
-      case paymentPending: PaymentPending => handlePaymentPending(paymentPending)
-      case _ => Future.failed(new Throwable("Payment event type not mapped"))
+      case paymentAccepted: PaymentAccepted => handlePaymentAccepted(paymentAccepted).asLogged("Processed paymentAccepted!")
+      case paymentDeclined: PaymentDeclined => handlePaymentDeclined(paymentDeclined).asLogged
+      case paymentPending: PaymentPending => handlePaymentPending(paymentPending).asLogged("Processed Payment Pending!")
+      case _ => Future.failed[Unit](new Throwable("Payment event type not mapped")).asLogged
     }
   }
 

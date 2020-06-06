@@ -1,16 +1,15 @@
 package eventstore
 
 import com.typesafe.config.ConfigFactory
+import eventstore.context.FutureContext._
 import eventstore.domain.EventProcessor
 import eventstore.parsers.EventParser
 import eventstore.rabbitmq.{RabbitConsumer, RabbitPublisher}
 import eventstore.repositories.{CassandraRepository, SqlRepository}
 
+import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, Future}
 import scala.util.{Failure, Success}
-import eventstore.context.FutureContext._
-
-import scala.concurrent.duration.Duration
 
 object Consumer {
 
@@ -47,13 +46,19 @@ object Consumer {
     println(s"Creating consumer for messages on $QUEUE_NAME")
 
     val onMessage = (message: String) => {
+
+      println(s"Received $message")
+
       val paymentEvent = for {
         event <- Future.fromTry(EventParser.parseEvent(message))
-        result <- eventProcessor.processEvent(event)
+        result <- eventProcessor.processEvent(event).run
       } yield result
 
+
       paymentEvent.onComplete {
-        case Success(_) => println("Correctly parsed event")
+        case Success((a, _)) =>
+          println("Correctly parsed event.")
+          a.map(println)
         case Failure(exception) => println("Error: " + exception.getMessage)
       }
       Await.result(paymentEvent, Duration.Inf)

@@ -17,10 +17,9 @@ class RabbitConsumer(hostName: String, user: String, pass: String, port: Int, ex
   def startConsumer(queueName: String, autoAck: Boolean, callback: DeliverCallback, cancel: CancelCallback) =
     channel.basicConsume(queueName, autoAck, callback, cancel)
 
-  def startConsumer(queueName: String, autoAck: Boolean, onMessage: (String => Unit), onCancel: String => Unit) = {
+  def startConsumer[A](queueName: String, autoAck: Boolean, onMessage: (String => A), onCancel: String => Unit) = {
     val callback: DeliverCallback = (consumerTag, delivery) => {
       val message = new String(delivery.getBody, "UTF-8")
-      println(s"Received $message with tag $consumerTag")
       onMessage(message)
     }
 
