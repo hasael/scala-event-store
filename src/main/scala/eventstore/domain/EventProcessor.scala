@@ -2,6 +2,7 @@ package eventstore.domain
 
 import cats.instances.future._
 import eventstore.context.FutureContext._
+import eventstore.context.LoggedFuture
 import eventstore.context.Syntax._
 import eventstore.context.Types.LoggedFuture
 import eventstore.events._
@@ -15,9 +16,9 @@ class EventProcessor(eventsRepository: EventsRepository, modelsRepository: Model
 
   def processEvent(paymentEvent: PaymentEvent): LoggedFuture[Unit] = {
     paymentEvent match {
-      case paymentAccepted: PaymentAccepted => handlePaymentAccepted(paymentAccepted).asLogged("Processed paymentAccepted!")
-      case paymentDeclined: PaymentDeclined => handlePaymentDeclined(paymentDeclined).asLogged
-      case paymentPending: PaymentPending => handlePaymentPending(paymentPending).asLogged("Processed Payment Pending!")
+      case paymentAccepted: PaymentAccepted => handlePaymentAccepted(paymentAccepted)
+      case paymentDeclined: PaymentDeclined => handlePaymentDeclined(paymentDeclined)
+      case paymentPending: PaymentPending => handlePaymentPending(paymentPending)
       case _ => Future.failed[Unit](new Throwable("Payment event type not mapped")).asLogged
     }
   }
@@ -41,11 +42,11 @@ class EventProcessor(eventsRepository: EventsRepository, modelsRepository: Model
     TransactionModel(event.transactionId, event.amount, event.currency, event.paymentType, "PENDING", event.transactionTime)
   }
 
-  private def handlePaymentDeclined(paymentDeclined: PaymentDeclined): Future[Unit] = {
-    Future.sequence(Vector(
-      eventsRepository.insertPaymentDeclined(paymentDeclined),
+  private def handlePaymentDeclined(paymentDeclined: PaymentDeclined): LoggedFuture[Unit] = {
+    LoggedFuture.sequenceF(List(
+      eventsRepository.insertPaymentDeclined(paymentDeclined).asLogged,
       modelsRepository.upsertTransaction(eventToReadModel(paymentDeclined)),
-      publishMessage(paymentDeclined)
+      publishMessage(paymentDeclined).asLogged
     )).map(_ => Unit)
   }
 
@@ -56,16 +57,16 @@ class EventProcessor(eventsRepository: EventsRepository, modelsRepository: Model
     } yield result
   }
 
-  private def handlePaymentAccepted(paymentAccepted: PaymentAccepted): Future[Unit] = {
-    Future.sequence(Vector(
-      eventsRepository.insertPaymentAccepted(paymentAccepted),
+  private def handlePaymentAccepted(paymentAccepted: PaymentAccepted): LoggedFuture[Unit] = {
+    LoggedFuture.sequenceF(List(
+      eventsRepository.insertPaymentAccepted(paymentAccepted).asLogged,
       modelsRepository.upsertTransaction(eventToReadModel(paymentAccepted))
     )).map(_ => Unit)
   }
 
-  private def handlePaymentPending(paymentPending: PaymentPending): Future[Unit] = {
-    Future.sequence(Vector(
-      eventsRepository.insertPaymentPending(paymentPending),
+  private def handlePaymentPending(paymentPending: PaymentPending): LoggedFuture[Unit] = {
+    LoggedFuture.sequenceF(List(
+      eventsRepository.insertPaymentPending(paymentPending).asLogged,
       modelsRepository.upsertTransaction(eventToReadModel(paymentPending))
     )).map(_ => Unit)
   }

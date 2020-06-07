@@ -1,9 +1,8 @@
 package eventstore.domain
 
+import eventstore.context.Types.LoggedFuture
 import eventstore.readmodels.TransactionModel
 
-import scala.concurrent.Future
-
 trait ModelsRepository {
-  def upsertTransaction(transactionMode: TransactionModel): Future[Unit]
+  def upsertTransaction(transactionMode: TransactionModel): LoggedFuture[Unit]
 }

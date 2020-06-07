@@ -1,7 +1,10 @@
 package eventstore
 
+import cats.instances.future._
+import cats.instances.list._
 import com.typesafe.config.ConfigFactory
 import eventstore.context.FutureContext._
+import eventstore.context.Syntax._
 import eventstore.domain.EventProcessor
 import eventstore.parsers.EventParser
 import eventstore.rabbitmq.{RabbitConsumer, RabbitPublisher}
@@ -47,21 +50,21 @@ object Consumer {
 
     val onMessage = (message: String) => {
 
-      println(s"Received $message")
-
       val paymentEvent = for {
-        event <- Future.fromTry(EventParser.parseEvent(message))
-        result <- eventProcessor.processEvent(event).run
+        event <- Future.fromTry(EventParser.parseEvent(message)).asLogged
+        result <- eventProcessor.processEvent(event)
       } yield result
 
-
-      paymentEvent.onComplete {
+      val task = paymentEvent.run
+      task.onComplete {
         case Success((a, _)) =>
+          println(s"Received $message")
+          a.foreach(println)
           println("Correctly parsed event.")
-          a.map(println)
+
         case Failure(exception) => println("Error: " + exception.getMessage)
       }
-      Await.result(paymentEvent, Duration.Inf)
+      Await.result(task, Duration.Inf)
     }
 
     val onCancel = (consumerTag: String) => {}
