@@ -36,10 +36,6 @@ object LoggedFuture {
 
 }
 
-object LoggedFutureOps {
-
-}
-
 object Syntax {
 
   implicit class LoggedSyntax[F[_], A](f: F[A]) {
