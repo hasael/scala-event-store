@@ -4,9 +4,7 @@ import eventstore.domain.EventsRepository
 import eventstore.events.PaymentAccepted
 import scala.concurrent.Future
 import eventstore.events.PaymentDeclined
-import scala.concurrent.Future
 import eventstore.events.PaymentPending
-import scala.concurrent.Future
 import eventstore.context.FutureContext._
 
 class FEventsRepository extends EventsRepository {

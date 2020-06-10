@@ -11,40 +11,18 @@ import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, Future}
 import scala.util.{Failure, Success}
 import eventstore.domain.EventProcessor
+import eventstore.domain.MessageProcessor
 
 object FConsumer extends App {
   override def main(args: Array[String]): Unit = {
-    val rabbitFraudPublisher = new FMessagePublisher()
-    rabbitFraudPublisher.declareQueue()
-
     val rabbitConsumer = new FQueueConsumer()
     rabbitConsumer.declareQueue()
 
-    val sqlRepository = new FModelsRepository()
+    val messageProcessor = buildMessageProcessor()
 
-    val eventsRepository = new FEventsRepository()
-
-    val eventProcessor =
-      new EventProcessor(eventsRepository, sqlRepository, rabbitFraudPublisher)
-    val onMessage = (message: String) => {
-
-      val paymentEvent = for {
-        event <- Future.fromTry(EventParser.parseEvent(message)).asLogged
-        result <- eventProcessor.processEvent(event)
-      } yield result
-
-      val task = paymentEvent.run
-      task.onComplete {
-        case Success((a, _)) =>
-          println(s"Received $message")
-          a.foreach(println)
-          println("Correctly parsed event.")
-
-        case Failure(exception) => println("Error: " + exception.getMessage)
-      }
-      Await.result(task, Duration.Inf)
-    }
-
+    val onMessage = (message: String) => 
+      Await.result(messageProcessor.processMessage(message), Duration.Inf)
+    
     val onCancel = (consumerTag: String) => {}
 
     rabbitConsumer.startConsumer(
@@ -60,5 +38,18 @@ object FConsumer extends App {
       Thread.sleep(1000)
     }
   }
-  
+
+  private def buildMessageProcessor(): MessageProcessor = {
+    val rabbitFraudPublisher = new FMessagePublisher()
+    rabbitFraudPublisher.declareQueue()
+
+    val sqlRepository = new FModelsRepository()
+    val eventParser = EventParser()
+    val eventsRepository = new FEventsRepository()
+
+    val eventProcessor = new EventProcessor(eventsRepository, sqlRepository, rabbitFraudPublisher)
+
+    MessageProcessor(eventParser, eventProcessor)
+  }
+
 }
