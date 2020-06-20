@@ -1,8 +1,9 @@
 package eventstore.rabbitmq
 
 import com.rabbitmq.client.{CancelCallback, ConnectionFactory, DeliverCallback}
+import eventstore.domain.QueueConsumer
 
-class RabbitConsumer(hostName: String, user: String, pass: String, port: Int, exchange: String, queueName: String) {
+class RabbitConsumer(hostName: String, user: String, pass: String, port: Int, exchange: String, queueName: String) extends QueueConsumer {
   val factory = new ConnectionFactory()
   factory.setHost(hostName)
   factory.setPort(port)
@@ -13,9 +14,6 @@ class RabbitConsumer(hostName: String, user: String, pass: String, port: Int, ex
   val channel = connection.createChannel()
 
   def declareQueue() = channel.queueDeclare(queueName, false, false, false, null)
-
-  def startConsumer(queueName: String, autoAck: Boolean, callback: DeliverCallback, cancel: CancelCallback) =
-    channel.basicConsume(queueName, autoAck, callback, cancel)
 
   def startConsumer[A](queueName: String, autoAck: Boolean, onMessage: (String => A), onCancel: String => Unit) = {
     val callback: DeliverCallback = (consumerTag, delivery) => {

@@ -13,16 +13,42 @@ import eventstore.repositories.{CassandraRepository, SqlRepository}
 import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, Future}
 import scala.util.{Failure, Success}
+import eventstore.domain.MessageProcessor
 
 object Consumer {
 
   def main(args: Array[String]) = {
-
     val QUEUE_NAME = ConfigFactory.load().getString("rabbit.payment.queue")
+
+    val rabbitConsumer = buildRabbitConsumer(QUEUE_NAME)
+
+    val messageProcessor = buildMessageProcessor()
+
+    val onMessage = (message: String) =>
+     Await.result(messageProcessor.processMessage(message), Duration.Inf)
+
+    val onCancel = (consumerTag: String) => {}
+
+    rabbitConsumer.startConsumer(QUEUE_NAME, autoAck = true, onMessage, onCancel)
+
+    while (true) {
+      // we don't want to kill the receiver,
+      // so we keep him alive waiting for more messages
+      Thread.sleep(1000)
+    }
+    rabbitConsumer.onClose()
+  }
+  private def buildRabbitConsumer(queueName: String): RabbitConsumer = {
+    println(s"Creating consumer for messages on $queueName")
     val RABBIT_HOST = ConfigFactory.load().getString("rabbit.payment.host")
     val RABBIT_PORT = ConfigFactory.load().getInt("rabbit.payment.port")
     val RABBIT_USER = ConfigFactory.load().getString("rabbit.payment.username")
     val RABBIT_PASS = ConfigFactory.load().getString("rabbit.payment.password")
+    val rabbitConsumer = RabbitConsumer(RABBIT_HOST, RABBIT_USER, RABBIT_PASS, RABBIT_PORT, "", queueName)
+    rabbitConsumer.declareQueue()
+    rabbitConsumer
+  }
+  private def buildMessageProcessor() = {
 
     val FRAUD_QUEUE_NAME = ConfigFactory.load().getString("rabbit.antifraud.queue")
     val FRAUD_RABBIT_HOST = ConfigFactory.load().getString("rabbit.antifraud.host")
@@ -39,43 +65,12 @@ object Consumer {
     val rabbitFraudPublisher = RabbitPublisher(FRAUD_RABBIT_HOST, FRAUD_RABBIT_USER, FRAUD_RABBIT_PASS, FRAUD_RABBIT_PORT, "", FRAUD_QUEUE_NAME)
     rabbitFraudPublisher.declareQueue()
 
-    val rabbitConsumer = RabbitConsumer(RABBIT_HOST, RABBIT_USER, RABBIT_PASS, RABBIT_PORT, "", QUEUE_NAME)
-    rabbitConsumer.declareQueue()
-
     val sqlRepository = new SqlRepository(MYSQL_MODELS_HOST, MYSQL_MODELS_PORT, MYSQL_MODELS_SCHEMA, MYSQL_MODELS_USER, MYSQL_MODELS_PASSWORD)
 
     val eventProcessor = new EventProcessor(new CassandraRepository(), sqlRepository, rabbitFraudPublisher)
 
-    println(s"Creating consumer for messages on $QUEUE_NAME")
+    val eventParser = EventParser()
 
-    val onMessage = (message: String) => {
-
-      val paymentEvent = for {
-        event <- Future.fromTry(EventParser.parseEvent(message)).asLogged
-        result <- eventProcessor.processEvent(event)
-      } yield result
-
-      val task = paymentEvent.run
-      task.onComplete {
-        case Success((a, _)) =>
-          println(s"Received $message")
-          a.foreach(println)
-          println("Correctly parsed event.")
-
-        case Failure(exception) => println("Error: " + exception.getMessage)
-      }
-      Await.result(task, Duration.Inf)
-    }
-
-    val onCancel = (consumerTag: String) => {}
-
-    rabbitConsumer.startConsumer(QUEUE_NAME, autoAck = true, onMessage, onCancel)
-
-    while (true) {
-      // we don't want to kill the receiver,
-      // so we keep him alive waiting for more messages
-      Thread.sleep(1000)
-    }
-    rabbitConsumer.onClose()
+    MessageProcessor(eventParser, eventProcessor)
   }
 }

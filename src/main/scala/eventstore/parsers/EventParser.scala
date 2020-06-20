@@ -5,7 +5,7 @@ import play.api.libs.json.{JsString, JsValue, Json}
 
 import scala.util.{Failure, Success, Try}
 
-object EventParser {
+class EventParser {
 
   def parseEvent(message: String): Try[PaymentEvent] = {
     for {
@@ -16,7 +16,8 @@ object EventParser {
   }
 
   private def getField(jsonObject: JsValue, fieldName: String): Try[JsValue] = {
-    (jsonObject \ fieldName).toOption.map(ev => Success(ev))
+    (jsonObject \ fieldName).toOption
+      .map(ev => Success(ev))
       .getOrElse(Failure(new Exception(s"Could not find field $fieldName")))
   }
 
@@ -24,7 +25,12 @@ object EventParser {
     jsEventType match {
       case JsString("PaymentAccepted") => Try(jsonObject.as[PaymentAccepted])
       case JsString("PaymentDeclined") => Try(jsonObject.as[PaymentDeclined])
-      case JsString("PaymentPending") => Try(jsonObject.as[PaymentPending])
-      case _ => Failure(new Exception("Event type field value was incorrect"))
+      case JsString("PaymentPending")  => Try(jsonObject.as[PaymentPending])
+      case _                           => Failure(new Exception("Event type field value was incorrect"))
     }
+}
+object EventParser {
+  def apply(): EventParser = {
+    new EventParser()
+  }
 }

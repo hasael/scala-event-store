@@ -4,4 +4,5 @@ import scala.concurrent.Future
 
 trait MessagePublisher {
   def publish(message: String): Future[Unit]
+  def declareQueue()
 }
