@@ -5,23 +5,22 @@ import scala.concurrent.duration.Duration
 import eventstore.parsers.EventParser
 import scala.concurrent.Future
 import eventstore.context.Syntax._
-import eventstore.context.FutureContext._
 import cats.instances.future._
 import cats.instances.list._
-import scala.util.Success
-import scala.util.Failure
+import cats.effect.Sync
+import cats.implicits._
 
-class MessageProcessor(eventParser: EventParser, eventProcessor: EventProcessor) {
-  def processMessage(message: String): Future[(List[String], Unit)] = {
+class MessageProcessor[F[_]: Sync](eventParser: EventParser, eventProcessor: EventProcessor[F]) {
+  def processMessage(message: String): F[Unit] = {
 
-    val paymentEvent = for {
-      event <- Future.fromTry(EventParser().parseEvent(message)).asLogged
+    for {
+      event <- Sync[F].fromTry(eventParser.parseEvent(message))
       result <- eventProcessor.processEvent(event)
     } yield result
 
-    val task = paymentEvent.run
-
-    task.onComplete {
+    // val task = paymentEvent.run
+    /*val a = Sync[F].attempt(paymentEvent)
+    task.attempt.unsafeRunSync {
       case Success((a, _)) =>
         println(s"Received $message")
         a.foreach(println)
@@ -29,12 +28,12 @@ class MessageProcessor(eventParser: EventParser, eventProcessor: EventProcessor)
 
       case Failure(exception) => println("Error: " + exception.getMessage)
     }
-    task
+   task*/
   }
 }
 
 object MessageProcessor {
-  def apply(eventParser: EventParser, eventProcessor: EventProcessor): MessageProcessor = {
-    new MessageProcessor(eventParser, eventProcessor)
+  def apply[F[_]: Sync](eventParser: EventParser, eventProcessor: EventProcessor[F]): MessageProcessor[F] = {
+    new MessageProcessor[F](eventParser, eventProcessor)
   }
 }

@@ -3,13 +3,14 @@ package eventstore.dummy
 import eventstore.domain.ModelsRepository
 import eventstore.context.Types
 import eventstore.readmodels.TransactionModel
-import eventstore.context.LoggedFuture._
-import eventstore.context.LoggedFuture
+import cats.Id
+import cats.effect.Sync
 
-class FModelsRepository extends ModelsRepository {
+class FModelsRepository[F[_]:Sync] extends ModelsRepository[F] {
 
-  override def upsertTransaction(transactionMode: TransactionModel): Types.LoggedFuture[Unit] = LoggedFuture{
+  override def upsertTransaction(transactionMode: TransactionModel): F[Unit] = Sync[F].delay{
       Thread.sleep(1000)
-  }.tellLine("Upserted transaction with id " + transactionMode.transactionId)
+  }
+  //.tellLine("Upserted transaction with id " + transactionMode.transactionId)
   
 }

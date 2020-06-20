@@ -12,6 +12,7 @@ import scala.concurrent.{Await, Future}
 import scala.util.{Failure, Success}
 import eventstore.domain.EventProcessor
 import eventstore.domain.MessageProcessor
+import cats.effect.IO
 
 object FConsumer extends App {
   override def main(args: Array[String]): Unit = {
@@ -20,9 +21,15 @@ object FConsumer extends App {
 
     val messageProcessor = buildMessageProcessor()
 
-    val onMessage = (message: String) => 
-      Await.result(messageProcessor.processMessage(message), Duration.Inf)
-    
+    val onMessage = (message: String) =>
+      messageProcessor.processMessage(message).attempt.unsafeRunSync() match {
+        case Right(_) =>
+          println(s"Received $message")
+          println("Correctly parsed event.")
+
+        case Left(exception) => println("Error: " + exception.getMessage)
+      }
+
     val onCancel = (consumerTag: String) => {}
 
     rabbitConsumer.startConsumer(
@@ -39,15 +46,15 @@ object FConsumer extends App {
     }
   }
 
-  private def buildMessageProcessor(): MessageProcessor = {
-    val rabbitFraudPublisher = new FMessagePublisher()
+  private def buildMessageProcessor(): MessageProcessor[IO] = {
+    val rabbitFraudPublisher = new FMessagePublisher[IO]()
     rabbitFraudPublisher.declareQueue()
 
-    val sqlRepository = new FModelsRepository()
+    val sqlRepository = new FModelsRepository[IO]()
     val eventParser = EventParser()
-    val eventsRepository = new FEventsRepository()
+    val eventsRepository = new FEventsRepository[IO]()
 
-    val eventProcessor = new EventProcessor(eventsRepository, sqlRepository, rabbitFraudPublisher)
+    val eventProcessor = new EventProcessor[IO](eventsRepository, sqlRepository, rabbitFraudPublisher)
 
     MessageProcessor(eventParser, eventProcessor)
   }

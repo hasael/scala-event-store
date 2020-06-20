@@ -11,6 +11,8 @@ import scala.concurrent.Await
 import scala.concurrent.duration.Duration
 import scala.util.{Failure, Random, Success}
 import eventstore.dummy.RandomEventCreator
+import cats.effect.IO
+
 object Publisher extends App {
 
   override def main(args: Array[String]) = {
@@ -22,7 +24,7 @@ object Publisher extends App {
     val RABBIT_PASS = ConfigFactory.load().getString("rabbit.payment.password")
     val exchange = ""
 
-    val rabbitPublisher = RabbitPublisher(RABBIT_HOST, RABBIT_USER, RABBIT_PASS, RABBIT_PORT, exchange, QUEUE_NAME)
+    val rabbitPublisher = RabbitPublisher[IO](RABBIT_HOST, RABBIT_USER, RABBIT_PASS, RABBIT_PORT, exchange, QUEUE_NAME)
 
     rabbitPublisher.declareQueue()
 
@@ -30,11 +32,12 @@ object Publisher extends App {
       println(s"publishing messages on $QUEUE_NAME")
       val message = RandomEventCreator().createRandomEvent()
       val task = rabbitPublisher.publish(message)
-      task.onComplete {
-        case Failure(error) => println(s"error publishing message $message. Error " + error.getMessage)
-        case Success(_) => println(s"sent message $message")
+
+      task.attempt.unsafeRunSync() match {
+        case Left(error) => println(s"error publishing message $message. Error " + error.getMessage)
+        case Right(_)     => println(s"sent message $message")
       }
-      Await.result(task, Duration.Inf)
+    
       Thread.sleep(2000)
     }
   }

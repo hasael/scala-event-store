@@ -14,6 +14,7 @@ import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, Future}
 import scala.util.{Failure, Success}
 import eventstore.domain.MessageProcessor
+import cats.effect.IO
 
 object Consumer {
 
@@ -25,7 +26,14 @@ object Consumer {
     val messageProcessor = buildMessageProcessor()
 
     val onMessage = (message: String) =>
-     Await.result(messageProcessor.processMessage(message), Duration.Inf)
+      messageProcessor.processMessage(message).attempt.unsafeRunSync() match {
+        case Right(_) =>
+          println(s"Received $message")
+          //a.foreach(println)
+          println("Correctly parsed event.")
+
+        case Left(exception) => println("Error: " + exception.getMessage)
+      }
 
     val onCancel = (consumerTag: String) => {}
 
@@ -62,12 +70,12 @@ object Consumer {
     val MYSQL_MODELS_PASSWORD = ConfigFactory.load().getString("mysql.models.password")
     val MYSQL_MODELS_SCHEMA = ConfigFactory.load().getString("mysql.models.schema")
 
-    val rabbitFraudPublisher = RabbitPublisher(FRAUD_RABBIT_HOST, FRAUD_RABBIT_USER, FRAUD_RABBIT_PASS, FRAUD_RABBIT_PORT, "", FRAUD_QUEUE_NAME)
+    val rabbitFraudPublisher = RabbitPublisher[IO](FRAUD_RABBIT_HOST, FRAUD_RABBIT_USER, FRAUD_RABBIT_PASS, FRAUD_RABBIT_PORT, "", FRAUD_QUEUE_NAME)
     rabbitFraudPublisher.declareQueue()
 
-    val sqlRepository = new SqlRepository(MYSQL_MODELS_HOST, MYSQL_MODELS_PORT, MYSQL_MODELS_SCHEMA, MYSQL_MODELS_USER, MYSQL_MODELS_PASSWORD)
+    val sqlRepository = new SqlRepository[IO](MYSQL_MODELS_HOST, MYSQL_MODELS_PORT, MYSQL_MODELS_SCHEMA, MYSQL_MODELS_USER, MYSQL_MODELS_PASSWORD)
 
-    val eventProcessor = new EventProcessor(new CassandraRepository(), sqlRepository, rabbitFraudPublisher)
+    val eventProcessor = new EventProcessor[IO](new CassandraRepository(), sqlRepository, rabbitFraudPublisher)
 
     val eventParser = EventParser()
 
