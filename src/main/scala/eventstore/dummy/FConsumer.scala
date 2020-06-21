@@ -1,34 +1,26 @@
 package eventstore.dummy
 
+import cats.effect.{IO, Sync}
+import eventstore.domain.{EventProcessor, MessageProcessor}
 import eventstore.parsers.EventParser
-import eventstore.context.Syntax._
-import eventstore.context.FutureContext._
-import cats.syntax.all._
-import cats.instances.future._
-import cats.instances.list._
-
-import scala.concurrent.duration.Duration
-import scala.concurrent.{Await, Future}
-import scala.util.{Failure, Success}
-import eventstore.domain.EventProcessor
-import eventstore.domain.MessageProcessor
-import cats.effect.IO
+import io.chrisdavenport.log4cats.Logger
+import io.chrisdavenport.log4cats.slf4j.Slf4jLogger
 
 object FConsumer extends App {
+
+  implicit def unsafeLogger[F[_] : Sync] = Slf4jLogger.getLogger[F]
+
   override def main(args: Array[String]): Unit = {
     val rabbitConsumer = new FQueueConsumer()
     rabbitConsumer.declareQueue()
-
     val messageProcessor = buildMessageProcessor()
 
-    val onMessage = (message: String) =>
-      messageProcessor.processMessage(message).attempt.unsafeRunSync() match {
-        case Right(_) =>
-          println(s"Received $message")
-          println("Correctly parsed event.")
-
-        case Left(exception) => println("Error: " + exception.getMessage)
-      }
+    val onMessage = (message: String) => {
+      for {
+        _ <- messageProcessor.processMessage(message)
+          .handleErrorWith(t => Logger[IO].error(t)("Error occurred"))
+      } yield ()
+      }.unsafeRunSync()
 
     val onCancel = (consumerTag: String) => {}
 

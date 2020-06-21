@@ -1,15 +1,12 @@
 package eventstore.domain
 
-import cats.instances.future._
-import eventstore.context.Syntax._
+import cats.effect.Sync
+import cats.implicits._
 import eventstore.events._
 import eventstore.readmodels.TransactionModel
 import play.api.libs.json.Json
 
-import scala.concurrent.Future
 import scala.util.Try
-import cats.effect.Sync
-import cats.implicits._
 
 class EventProcessor[F[_]: Sync](
     eventsRepository: EventsRepository[F],

@@ -1,39 +1,29 @@
 package eventstore
 
-import cats.instances.future._
-import cats.instances.list._
+import cats.effect.{IO, Sync}
 import com.typesafe.config.ConfigFactory
-import eventstore.context.FutureContext._
-import eventstore.context.Syntax._
-import eventstore.domain.EventProcessor
+import eventstore.domain.{EventProcessor, MessageProcessor}
 import eventstore.parsers.EventParser
 import eventstore.rabbitmq.{RabbitConsumer, RabbitPublisher}
 import eventstore.repositories.{CassandraRepository, SqlRepository}
-
-import scala.concurrent.duration.Duration
-import scala.concurrent.{Await, Future}
-import scala.util.{Failure, Success}
-import eventstore.domain.MessageProcessor
-import cats.effect.IO
+import io.chrisdavenport.log4cats.Logger
+import io.chrisdavenport.log4cats.slf4j.Slf4jLogger
 
 object Consumer {
+  implicit def unsafeLogger[F[_] : Sync] = Slf4jLogger.getLogger[F]
 
   def main(args: Array[String]) = {
     val QUEUE_NAME = ConfigFactory.load().getString("rabbit.payment.queue")
-
     val rabbitConsumer = buildRabbitConsumer(QUEUE_NAME)
 
     val messageProcessor = buildMessageProcessor()
 
-    val onMessage = (message: String) =>
-      messageProcessor.processMessage(message).attempt.unsafeRunSync() match {
-        case Right(_) =>
-          println(s"Received $message")
-          //a.foreach(println)
-          println("Correctly parsed event.")
-
-        case Left(exception) => println("Error: " + exception.getMessage)
-      }
+    val onMessage = (message: String) => {
+      for {
+        _ <- messageProcessor.processMessage(message)
+          .handleErrorWith(t => Logger[IO].error(t)("Error occurred"))
+      } yield ()
+      }.unsafeRunSync()
 
     val onCancel = (consumerTag: String) => {}
 
@@ -46,6 +36,7 @@ object Consumer {
     }
     rabbitConsumer.onClose()
   }
+
   private def buildRabbitConsumer(queueName: String): RabbitConsumer = {
     println(s"Creating consumer for messages on $queueName")
     val RABBIT_HOST = ConfigFactory.load().getString("rabbit.payment.host")
@@ -56,6 +47,7 @@ object Consumer {
     rabbitConsumer.declareQueue()
     rabbitConsumer
   }
+
   private def buildMessageProcessor() = {
 
     val FRAUD_QUEUE_NAME = ConfigFactory.load().getString("rabbit.antifraud.queue")

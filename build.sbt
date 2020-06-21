@@ -15,5 +15,8 @@ lazy val root = (project in file("."))
     libraryDependencies += "io.getquill" %% "quill-cassandra" % "3.5.1",
     libraryDependencies += "mysql" % "mysql-connector-java" % "8.0.20",
     libraryDependencies += "org.typelevel" %% "cats-core" % "2.0.0",
-    libraryDependencies += "org.typelevel" %% "cats-effect" % "2.1.3"
+    libraryDependencies += "org.typelevel" %% "cats-effect" % "2.1.3",
+    libraryDependencies += "io.chrisdavenport" %% "log4cats-slf4j" % "1.1.1",
+    libraryDependencies += "io.chrisdavenport" %% "log4cats-core" % "1.1.1",
+    libraryDependencies += "org.apache.logging.log4j" % "log4j-slf4j-impl" % "2.13.3"
   )

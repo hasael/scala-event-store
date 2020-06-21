@@ -1,17 +1,9 @@
 package eventstore
 
-import java.time.{Instant, ZoneId}
-import java.util.UUID
-
-import com.typesafe.config.ConfigFactory
-import eventstore.context.FutureContext._
-import eventstore.rabbitmq.RabbitPublisher
-
-import scala.concurrent.Await
-import scala.concurrent.duration.Duration
-import scala.util.{Failure, Random, Success}
-import eventstore.dummy.RandomEventCreator
 import cats.effect.IO
+import com.typesafe.config.ConfigFactory
+import eventstore.dummy.RandomEventCreator
+import eventstore.rabbitmq.RabbitPublisher
 
 object Publisher extends App {
 
