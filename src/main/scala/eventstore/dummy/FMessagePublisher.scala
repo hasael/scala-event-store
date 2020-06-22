@@ -7,7 +7,8 @@ import io.chrisdavenport.log4cats.Logger
 
 class FMessagePublisher[F[_] : Sync : Logger] extends MessagePublisher[F] {
 
-  override def publish(message: String): F[Unit] = Sync[F].delay(Thread.sleep(1000)) >> Logger[F].info(s"Published message $message")
+  override def publish(message: String): F[Unit] = Logger[F].info(s"Publishing message $message") >>
+    Sync[F].delay(Thread.sleep(1000)) >> Logger[F].info(s"Published message $message")
 
   override def declareQueue() = {}
 }

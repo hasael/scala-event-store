@@ -1,6 +1,7 @@
 package eventstore.domain
 
-import cats.effect.Sync
+import cats.Parallel
+import cats.effect.{Concurrent, Sync}
 import cats.implicits._
 import eventstore.events._
 import eventstore.readmodels.TransactionModel
@@ -8,7 +9,7 @@ import play.api.libs.json.Json
 
 import scala.util.Try
 
-class EventProcessor[F[_]: Sync](
+class EventProcessor[F[_]: Sync: Concurrent: Parallel](
     eventsRepository: EventsRepository[F],
     modelsRepository: ModelsRepository[F],
     fraudCheckPublisher: MessagePublisher[F]
@@ -51,14 +52,18 @@ class EventProcessor[F[_]: Sync](
   }
 
   private def handlePaymentDeclined(paymentDeclined: PaymentDeclined): F[Unit] = {
-    for{
-      _ <- eventsRepository.insertPaymentDeclined(paymentDeclined)
-      _ <- modelsRepository.upsertTransaction(eventToReadModel(paymentDeclined))
-      _ <- publishMessage(paymentDeclined)
-    } yield()
+    Concurrent
+      .parSequenceN(3)(
+        List(
+          eventsRepository.insertPaymentDeclined(paymentDeclined),
+          modelsRepository.upsertTransaction(eventToReadModel(paymentDeclined)),
+          publishMessage(paymentDeclined)
+        )
+      )
+      .map(_ => ())
   }
 
-  private def publishMessage(paymentDeclined: PaymentDeclined): F[Unit] = {    
+  private def publishMessage(paymentDeclined: PaymentDeclined): F[Unit] = {
     for {
       message <- Sync[F].fromTry[String](createPaymentFailed(paymentDeclined))
       result <- fraudCheckPublisher.publish(message)
@@ -66,16 +71,25 @@ class EventProcessor[F[_]: Sync](
   }
 
   private def handlePaymentAccepted(paymentAccepted: PaymentAccepted): F[Unit] = {
-      for{
-        _ <-  eventsRepository.insertPaymentAccepted(paymentAccepted)
-        _ <- modelsRepository.upsertTransaction(eventToReadModel(paymentAccepted))
-      } yield()
+    Concurrent
+      .parSequenceN(2)(
+        List(
+          eventsRepository.insertPaymentAccepted(paymentAccepted),
+          modelsRepository.upsertTransaction(eventToReadModel(paymentAccepted))
+        )
+      )
+      .map(_ => ())
   }
 
   private def handlePaymentPending(paymentPending: PaymentPending): F[Unit] = {
-    for{
-      _ <- eventsRepository.insertPaymentPending(paymentPending)
-      _ <- modelsRepository.upsertTransaction(eventToReadModel(paymentPending))
-    } yield()
+
+    Concurrent
+      .parSequenceN(2)(
+        List(
+          eventsRepository.insertPaymentPending(paymentPending),
+          modelsRepository.upsertTransaction(eventToReadModel(paymentPending))
+        )
+      )
+      .map(_ => ())
   }
 }

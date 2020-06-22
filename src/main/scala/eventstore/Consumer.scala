@@ -1,6 +1,6 @@
 package eventstore
 
-import cats.effect.{IO, Sync}
+import cats.effect.{ContextShift, IO, Sync}
 import com.typesafe.config.ConfigFactory
 import eventstore.domain.{EventProcessor, MessageProcessor}
 import eventstore.parsers.EventParser
@@ -9,33 +9,36 @@ import eventstore.repositories.{CassandraRepository, SqlRepository}
 import io.chrisdavenport.log4cats.Logger
 import io.chrisdavenport.log4cats.slf4j.Slf4jLogger
 
+import scala.concurrent.ExecutionContext
+
 object Consumer {
-  implicit def unsafeLogger[F[_] : Sync] = Slf4jLogger.getLogger[F]
+  implicit def unsafeLogger[F[_]: Sync] = Slf4jLogger.getLogger[F]
+  implicit val contextShift: ContextShift[IO] = IO.contextShift(ExecutionContext.global)
 
-  def main(args: Array[String]) = {
-    val QUEUE_NAME = ConfigFactory.load().getString("rabbit.payment.queue")
-    val rabbitConsumer = buildRabbitConsumer(QUEUE_NAME)
+  val QUEUE_NAME = ConfigFactory.load().getString("rabbit.payment.queue")
+  val rabbitConsumer = buildRabbitConsumer(QUEUE_NAME)
 
-    val messageProcessor = buildMessageProcessor()
+  val messageProcessor = buildMessageProcessor()
 
-    val onMessage = (message: String) => {
+  val onMessage = (message: String) =>
+    {
       for {
-        _ <- messageProcessor.processMessage(message)
+        _ <- messageProcessor
+          .processMessage(message)
           .handleErrorWith(t => Logger[IO].error(t)("Error occurred"))
       } yield ()
-      }.unsafeRunSync()
+    }.unsafeRunSync()
 
-    val onCancel = (consumerTag: String) => {}
+  val onCancel = (consumerTag: String) => {}
 
-    rabbitConsumer.startConsumer(QUEUE_NAME, autoAck = true, onMessage, onCancel)
+  rabbitConsumer.startConsumer(QUEUE_NAME, autoAck = true, onMessage, onCancel)
 
-    while (true) {
-      // we don't want to kill the receiver,
-      // so we keep him alive waiting for more messages
-      Thread.sleep(1000)
-    }
-    rabbitConsumer.onClose()
+  while (true) {
+    // we don't want to kill the receiver,
+    // so we keep him alive waiting for more messages
+    Thread.sleep(1000)
   }
+  rabbitConsumer.onClose()
 
   private def buildRabbitConsumer(queueName: String): RabbitConsumer = {
     println(s"Creating consumer for messages on $queueName")

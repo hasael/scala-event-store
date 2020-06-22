@@ -1,41 +1,46 @@
 package eventstore.dummy
 
-import cats.effect.{IO, Sync}
+import java.util.concurrent.Executors
+
+import cats.effect.IO._
+import cats.effect.{IO, Sync, _}
 import eventstore.domain.{EventProcessor, MessageProcessor}
 import eventstore.parsers.EventParser
 import io.chrisdavenport.log4cats.Logger
 import io.chrisdavenport.log4cats.slf4j.Slf4jLogger
 
+import scala.concurrent.ExecutionContext
+
 object FConsumer extends App {
+  implicit def unsafeLogger[F[_]: Sync] = Slf4jLogger.getLogger[F]
+  implicit val contextShift: ContextShift[IO] = IO.contextShift(ExecutionContext.Implicits.global)
 
-  implicit def unsafeLogger[F[_] : Sync] = Slf4jLogger.getLogger[F]
+  val rabbitConsumer = new FQueueConsumer()
+  rabbitConsumer.declareQueue()
+  val messageProcessor = buildMessageProcessor()
 
-  override def main(args: Array[String]): Unit = {
-    val rabbitConsumer = new FQueueConsumer()
-    rabbitConsumer.declareQueue()
-    val messageProcessor = buildMessageProcessor()
-
-    val onMessage = (message: String) => {
+  val onMessage = (message: String) =>
+    {
       for {
-        _ <- messageProcessor.processMessage(message)
+        _ <- messageProcessor
+          .processMessage(message)
           .handleErrorWith(t => Logger[IO].error(t)("Error occurred"))
       } yield ()
-      }.unsafeRunSync()
+    }.unsafeRunSync()
 
-    val onCancel = (consumerTag: String) => {}
+  val onCancel = (consumerTag: String) => {}
 
-    rabbitConsumer.startConsumer(
-      "",
-      autoAck = true,
-      onMessage,
-      onCancel
-    )
+  rabbitConsumer.startConsumer(
+    "",
+    autoAck = true,
+    onMessage,
+    onCancel
+  )
 
-    while (true) {
-      // we don't want to kill the receiver,
-      // so we keep him alive waiting for more messages
-      Thread.sleep(1000)
-    }
+  while (true) {
+    // we don't want to kill the receiver,
+    // so we keep him alive waiting for more messages
+    Thread.sleep(1000)
   }
 
   private def buildMessageProcessor(): MessageProcessor[IO] = {
