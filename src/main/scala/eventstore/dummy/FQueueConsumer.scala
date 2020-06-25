@@ -1,10 +1,6 @@
 package eventstore.dummy
 
 import eventstore.domain.QueueConsumer
-import java.{util => ju}
-import scala.util.Random
-import java.time.Instant
-import java.time.ZoneId
 
 class FQueueConsumer extends QueueConsumer {
 

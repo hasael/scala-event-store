@@ -2,12 +2,10 @@ package eventstore.domain
 
 import eventstore.events.{PaymentAccepted, PaymentDeclined, PaymentPending}
 
-import scala.concurrent.Future
+trait EventsRepository[F[_]] {
+  def insertPaymentAccepted(paymentAccepted: PaymentAccepted): F[Unit]
 
-trait EventsRepository {
-  def insertPaymentAccepted(paymentAccepted: PaymentAccepted): Future[Unit]
+  def insertPaymentDeclined(paymentDeclined: PaymentDeclined): F[Unit]
 
-  def insertPaymentDeclined(paymentDeclined: PaymentDeclined): Future[Unit]
-
-  def insertPaymentPending(paymentPending: PaymentPending): Future[Unit]
+  def insertPaymentPending(paymentPending: PaymentPending): F[Unit]
 }

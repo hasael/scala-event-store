@@ -1,11 +1,14 @@
 package eventstore.dummy
 
+import cats.effect.Sync
+import cats.implicits._
 import eventstore.domain.MessagePublisher
-import scala.concurrent.Future
-import eventstore.context.FutureContext._
+import io.chrisdavenport.log4cats.Logger
 
-class FMessagePublisher extends MessagePublisher {
+class FMessagePublisher[F[_] : Sync : Logger] extends MessagePublisher[F] {
 
-  override def publish(message: String): Future[Unit] = Future(Thread.sleep(1000))
+  override def publish(message: String): F[Unit] = Logger[F].info(s"Publishing message $message") >>
+    Sync[F].delay(Thread.sleep(1000)) >> Logger[F].info(s"Published message $message")
+
   override def declareQueue() = {}
 }

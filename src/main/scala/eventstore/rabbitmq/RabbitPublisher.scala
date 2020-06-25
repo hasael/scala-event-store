@@ -2,10 +2,9 @@ package eventstore.rabbitmq
 
 import com.rabbitmq.client.ConnectionFactory
 import eventstore.domain.MessagePublisher
-import eventstore.context.FutureContext._
-import scala.concurrent.Future
+import cats.effect.Sync
 
-class RabbitPublisher(hostName: String, user: String, pass: String, port: Int, exchange: String, queueName: String) extends MessagePublisher {
+class RabbitPublisher[F[_]:Sync](hostName: String, user: String, pass: String, port: Int, exchange: String, queueName: String) extends MessagePublisher[F] {
   val factory = new ConnectionFactory()
   factory.setHost(hostName)
   factory.setPort(port)
@@ -17,12 +16,12 @@ class RabbitPublisher(hostName: String, user: String, pass: String, port: Int, e
 
   def declareQueue() = channel.queueDeclare(queueName, false, false, false, null)
 
-  def publish(message: String): Future[Unit] = {
-    Future(channel.basicPublish(exchange, queueName, null, message.getBytes))
+  def publish(message: String): F[Unit] = {
+    Sync[F].delay(channel.basicPublish(exchange, queueName, null, message.getBytes))
   }
 
 }
 
 object RabbitPublisher {
-  def apply(hostName: String, user: String, pass: String, port: Int, exchange: String, queueName: String): RabbitPublisher = new RabbitPublisher(hostName, user, pass, port, exchange, queueName)
+  def apply[F[_]:Sync](hostName: String, user: String, pass: String, port: Int, exchange: String, queueName: String): RabbitPublisher[F] = new RabbitPublisher[F](hostName, user, pass, port, exchange, queueName)
 }

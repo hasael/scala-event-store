@@ -1,15 +1,18 @@
 package eventstore.dummy
 
+import cats.effect.Sync
 import eventstore.domain.ModelsRepository
-import eventstore.context.Types
 import eventstore.readmodels.TransactionModel
-import eventstore.context.LoggedFuture._
-import eventstore.context.LoggedFuture
+import io.chrisdavenport.log4cats.Logger
+import cats.implicits._
 
-class FModelsRepository extends ModelsRepository {
+class FModelsRepository[F[_] : Sync : Logger] extends ModelsRepository[F] {
 
-  override def upsertTransaction(transactionMode: TransactionModel): Types.LoggedFuture[Unit] = LoggedFuture{
-      Thread.sleep(1000)
-  }.tellLine("Upserted transaction with id " + transactionMode.transactionId)
-  
+  override def upsertTransaction(transactionMode: TransactionModel): F[Unit] =
+
+    Logger[F].info("Calling upsert transaction") >>
+      Sync[F].delay {
+        Thread.sleep(2000)
+      } >> Logger[F].info("Upserted transaction with id " + transactionMode.transactionId)
+
 }

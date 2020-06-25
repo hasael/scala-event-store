@@ -1,53 +1,57 @@
 package eventstore.dummy
 
-import eventstore.parsers.EventParser
-import eventstore.context.Syntax._
-import eventstore.context.FutureContext._
-import cats.syntax.all._
-import cats.instances.future._
-import cats.instances.list._
+import java.util.concurrent.Executors
 
-import scala.concurrent.duration.Duration
-import scala.concurrent.{Await, Future}
-import scala.util.{Failure, Success}
-import eventstore.domain.EventProcessor
-import eventstore.domain.MessageProcessor
+import cats.effect.IO._
+import cats.effect.{IO, Sync, _}
+import eventstore.domain.{EventProcessor, MessageProcessor}
+import eventstore.parsers.EventParser
+import io.chrisdavenport.log4cats.Logger
+import io.chrisdavenport.log4cats.slf4j.Slf4jLogger
+
+import scala.concurrent.ExecutionContext
 
 object FConsumer extends App {
-  override def main(args: Array[String]): Unit = {
-    val rabbitConsumer = new FQueueConsumer()
-    rabbitConsumer.declareQueue()
+  implicit def unsafeLogger[F[_]: Sync] = Slf4jLogger.getLogger[F]
+  implicit val contextShift: ContextShift[IO] = IO.contextShift(ExecutionContext.Implicits.global)
 
-    val messageProcessor = buildMessageProcessor()
+  val rabbitConsumer = new FQueueConsumer()
+  rabbitConsumer.declareQueue()
+  val messageProcessor = buildMessageProcessor()
 
-    val onMessage = (message: String) => 
-      Await.result(messageProcessor.processMessage(message), Duration.Inf)
-    
-    val onCancel = (consumerTag: String) => {}
+  val onMessage = (message: String) =>
+    {
+      for {
+        _ <- messageProcessor
+          .processMessage(message)
+          .handleErrorWith(t => Logger[IO].error(t)("Error occurred"))
+      } yield ()
+    }.unsafeRunSync()
 
-    rabbitConsumer.startConsumer(
-      "",
-      autoAck = true,
-      onMessage,
-      onCancel
-    )
+  val onCancel = (consumerTag: String) => {}
 
-    while (true) {
-      // we don't want to kill the receiver,
-      // so we keep him alive waiting for more messages
-      Thread.sleep(1000)
-    }
+  rabbitConsumer.startConsumer(
+    "",
+    autoAck = true,
+    onMessage,
+    onCancel
+  )
+
+  while (true) {
+    // we don't want to kill the receiver,
+    // so we keep him alive waiting for more messages
+    Thread.sleep(1000)
   }
 
-  private def buildMessageProcessor(): MessageProcessor = {
-    val rabbitFraudPublisher = new FMessagePublisher()
+  private def buildMessageProcessor(): MessageProcessor[IO] = {
+    val rabbitFraudPublisher = new FMessagePublisher[IO]()
     rabbitFraudPublisher.declareQueue()
 
-    val sqlRepository = new FModelsRepository()
+    val sqlRepository = new FModelsRepository[IO]()
     val eventParser = EventParser()
-    val eventsRepository = new FEventsRepository()
+    val eventsRepository = new FEventsRepository[IO]()
 
-    val eventProcessor = new EventProcessor(eventsRepository, sqlRepository, rabbitFraudPublisher)
+    val eventProcessor = new EventProcessor[IO](eventsRepository, sqlRepository, rabbitFraudPublisher)
 
     MessageProcessor(eventParser, eventProcessor)
   }

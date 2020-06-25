@@ -1,43 +1,45 @@
 package eventstore
 
-import cats.instances.future._
-import cats.instances.list._
+import cats.effect.{ContextShift, IO, Sync}
 import com.typesafe.config.ConfigFactory
-import eventstore.context.FutureContext._
-import eventstore.context.Syntax._
-import eventstore.domain.EventProcessor
+import eventstore.domain.{EventProcessor, MessageProcessor}
 import eventstore.parsers.EventParser
 import eventstore.rabbitmq.{RabbitConsumer, RabbitPublisher}
 import eventstore.repositories.{CassandraRepository, SqlRepository}
+import io.chrisdavenport.log4cats.Logger
+import io.chrisdavenport.log4cats.slf4j.Slf4jLogger
 
-import scala.concurrent.duration.Duration
-import scala.concurrent.{Await, Future}
-import scala.util.{Failure, Success}
-import eventstore.domain.MessageProcessor
+import scala.concurrent.ExecutionContext
 
 object Consumer {
+  implicit def unsafeLogger[F[_]: Sync] = Slf4jLogger.getLogger[F]
+  implicit val contextShift: ContextShift[IO] = IO.contextShift(ExecutionContext.global)
 
-  def main(args: Array[String]) = {
-    val QUEUE_NAME = ConfigFactory.load().getString("rabbit.payment.queue")
+  val QUEUE_NAME = ConfigFactory.load().getString("rabbit.payment.queue")
+  val rabbitConsumer = buildRabbitConsumer(QUEUE_NAME)
 
-    val rabbitConsumer = buildRabbitConsumer(QUEUE_NAME)
+  val messageProcessor = buildMessageProcessor()
 
-    val messageProcessor = buildMessageProcessor()
+  val onMessage = (message: String) =>
+    {
+      for {
+        _ <- messageProcessor
+          .processMessage(message)
+          .handleErrorWith(t => Logger[IO].error(t)("Error occurred"))
+      } yield ()
+    }.unsafeRunSync()
 
-    val onMessage = (message: String) =>
-     Await.result(messageProcessor.processMessage(message), Duration.Inf)
+  val onCancel = (consumerTag: String) => {}
 
-    val onCancel = (consumerTag: String) => {}
+  rabbitConsumer.startConsumer(QUEUE_NAME, autoAck = true, onMessage, onCancel)
 
-    rabbitConsumer.startConsumer(QUEUE_NAME, autoAck = true, onMessage, onCancel)
-
-    while (true) {
-      // we don't want to kill the receiver,
-      // so we keep him alive waiting for more messages
-      Thread.sleep(1000)
-    }
-    rabbitConsumer.onClose()
+  while (true) {
+    // we don't want to kill the receiver,
+    // so we keep him alive waiting for more messages
+    Thread.sleep(1000)
   }
+  rabbitConsumer.onClose()
+
   private def buildRabbitConsumer(queueName: String): RabbitConsumer = {
     println(s"Creating consumer for messages on $queueName")
     val RABBIT_HOST = ConfigFactory.load().getString("rabbit.payment.host")
@@ -48,6 +50,7 @@ object Consumer {
     rabbitConsumer.declareQueue()
     rabbitConsumer
   }
+
   private def buildMessageProcessor() = {
 
     val FRAUD_QUEUE_NAME = ConfigFactory.load().getString("rabbit.antifraud.queue")
@@ -62,12 +65,12 @@ object Consumer {
     val MYSQL_MODELS_PASSWORD = ConfigFactory.load().getString("mysql.models.password")
     val MYSQL_MODELS_SCHEMA = ConfigFactory.load().getString("mysql.models.schema")
 
-    val rabbitFraudPublisher = RabbitPublisher(FRAUD_RABBIT_HOST, FRAUD_RABBIT_USER, FRAUD_RABBIT_PASS, FRAUD_RABBIT_PORT, "", FRAUD_QUEUE_NAME)
+    val rabbitFraudPublisher = RabbitPublisher[IO](FRAUD_RABBIT_HOST, FRAUD_RABBIT_USER, FRAUD_RABBIT_PASS, FRAUD_RABBIT_PORT, "", FRAUD_QUEUE_NAME)
     rabbitFraudPublisher.declareQueue()
 
-    val sqlRepository = new SqlRepository(MYSQL_MODELS_HOST, MYSQL_MODELS_PORT, MYSQL_MODELS_SCHEMA, MYSQL_MODELS_USER, MYSQL_MODELS_PASSWORD)
+    val sqlRepository = new SqlRepository[IO](MYSQL_MODELS_HOST, MYSQL_MODELS_PORT, MYSQL_MODELS_SCHEMA, MYSQL_MODELS_USER, MYSQL_MODELS_PASSWORD)
 
-    val eventProcessor = new EventProcessor(new CassandraRepository(), sqlRepository, rabbitFraudPublisher)
+    val eventProcessor = new EventProcessor[IO](new CassandraRepository(), sqlRepository, rabbitFraudPublisher)
 
     val eventParser = EventParser()
 
