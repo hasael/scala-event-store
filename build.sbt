@@ -18,5 +18,7 @@ lazy val root = (project in file("."))
     libraryDependencies += "org.typelevel" %% "cats-effect" % "2.1.3",
     libraryDependencies += "io.chrisdavenport" %% "log4cats-slf4j" % "1.1.1",
     libraryDependencies += "io.chrisdavenport" %% "log4cats-core" % "1.1.1",
-    libraryDependencies += "org.apache.logging.log4j" % "log4j-slf4j-impl" % "2.13.3"
+    libraryDependencies += "org.apache.logging.log4j" % "log4j-slf4j-impl" % "2.13.3",
+    libraryDependencies += "dev.profunktor" %% "fs2-rabbit" % "2.1.1",
+    libraryDependencies += "dev.profunktor" %% "fs2-rabbit-circe" % "2.1.1"
   )

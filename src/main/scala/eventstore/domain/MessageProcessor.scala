@@ -6,11 +6,11 @@ import eventstore.parsers.EventParser
 import io.chrisdavenport.log4cats.Logger
 
 class MessageProcessor[F[_] : Sync : Logger](eventParser: EventParser, eventProcessor: EventProcessor[F]) {
-  def processMessage(message: String): F[Unit] = {
+  def processMessage(message: PaymentMessage): F[Unit] = {
 
     for {
-      _ <- Logger[F].info(s"Received $message")
-      event <- Sync[F].fromTry(eventParser.parseEvent(message))
+      _ <- Logger[F].info(s"Received $message.payload")
+      event <- Sync[F].fromTry(eventParser.parseEvent(message.payload))
       _<- Logger[F].info(s"Processing event as "+ event.getClass.toString)
       result <- eventProcessor.processEvent(event)
     } yield result

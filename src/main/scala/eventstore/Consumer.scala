@@ -2,53 +2,48 @@ package eventstore
 
 import cats.effect.{ContextShift, IO, Sync}
 import com.typesafe.config.ConfigFactory
-import eventstore.domain.{EventProcessor, MessageProcessor}
+import eventstore.domain.{EventProcessor, MessageProcessor, PaymentMessage}
 import eventstore.parsers.EventParser
-import eventstore.rabbitmq.{RabbitConsumer, RabbitPublisher}
+import eventstore.rabbitmq.{RabbitMqClient, RabbitPublisher}
 import eventstore.repositories.{CassandraRepository, SqlRepository}
 import io.chrisdavenport.log4cats.Logger
 import io.chrisdavenport.log4cats.slf4j.Slf4jLogger
 
 import scala.concurrent.ExecutionContext
 
-object Consumer {
+object Consumer extends App {
   implicit def unsafeLogger[F[_]: Sync] = Slf4jLogger.getLogger[F]
   implicit val contextShift: ContextShift[IO] = IO.contextShift(ExecutionContext.global)
 
   val QUEUE_NAME = ConfigFactory.load().getString("rabbit.payment.queue")
-  val rabbitConsumer = buildRabbitConsumer(QUEUE_NAME)
-
+  val rabbitConsumer = buildRabbitConsumer()
   val messageProcessor = buildMessageProcessor()
-
-  val onMessage = (message: String) =>
-    {
+  val onMessage = (message: PaymentMessage) =>
       for {
         _ <- messageProcessor
           .processMessage(message)
           .handleErrorWith(t => Logger[IO].error(t)("Error occurred"))
       } yield ()
-    }.unsafeRunSync()
 
-  val onCancel = (consumerTag: String) => {}
+  val task = rabbitConsumer.autoAckConsumer(QUEUE_NAME, onMessage)
 
-  rabbitConsumer.startConsumer(QUEUE_NAME, autoAck = true, onMessage, onCancel)
+  task
+    .handleErrorWith(t => Logger[IO].error(t)("Fatal error occurred"))
+    .unsafeRunSync()
 
   while (true) {
     // we don't want to kill the receiver,
     // so we keep him alive waiting for more messages
     Thread.sleep(1000)
   }
-  rabbitConsumer.onClose()
 
-  private def buildRabbitConsumer(queueName: String): RabbitConsumer = {
-    println(s"Creating consumer for messages on $queueName")
+  private def buildRabbitConsumer(): RabbitMqClient[IO] = {
+    //println(s"Creating consumer for messages on $queueName")
     val RABBIT_HOST = ConfigFactory.load().getString("rabbit.payment.host")
     val RABBIT_PORT = ConfigFactory.load().getInt("rabbit.payment.port")
     val RABBIT_USER = ConfigFactory.load().getString("rabbit.payment.username")
     val RABBIT_PASS = ConfigFactory.load().getString("rabbit.payment.password")
-    val rabbitConsumer = RabbitConsumer(RABBIT_HOST, RABBIT_USER, RABBIT_PASS, RABBIT_PORT, "", queueName)
-    rabbitConsumer.declareQueue()
-    rabbitConsumer
+    RabbitMqClient[IO](RABBIT_HOST, RABBIT_USER, RABBIT_PASS, RABBIT_PORT)
   }
 
   private def buildMessageProcessor() = {
