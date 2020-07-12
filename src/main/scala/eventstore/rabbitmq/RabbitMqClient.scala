@@ -5,22 +5,22 @@ import java.util.concurrent.Executors
 import cats.data.NonEmptyList
 import cats.effect.{Blocker, ConcurrentEffect, ContextShift, Resource}
 import cats.implicits._
-import dev.profunktor.fs2rabbit.config.declaration.DeclarationQueueConfig
 import dev.profunktor.fs2rabbit.config.{Fs2RabbitConfig, Fs2RabbitNodeConfig}
 import dev.profunktor.fs2rabbit.interpreter.RabbitClient
 import dev.profunktor.fs2rabbit.model.{AmqpEnvelope, QueueName}
 import eventstore.domain.{PaymentMessage, QueueClient}
-import fs2.{Pipe, Stream}
+import fs2.Pipe
 
 class RabbitMqClient[F[_]: ConcurrentEffect: ContextShift](
     hostName: String,
     user: String,
     pass: String,
+    vhost: String,
     port: Int
 ) extends QueueClient[F] {
 
   val config = Fs2RabbitConfig(
-    virtualHost = "/",
+    virtualHost = vhost,
     nodes = NonEmptyList.one(
       Fs2RabbitNodeConfig(
         host = hostName,
@@ -67,7 +67,8 @@ object RabbitMqClient {
       hostName: String,
       user: String,
       pass: String,
+      vhost: String,
       port: Int
   ): RabbitMqClient[F] =
-    new RabbitMqClient(hostName, user, pass, port)
+    new RabbitMqClient(hostName, user, pass, vhost, port)
 }

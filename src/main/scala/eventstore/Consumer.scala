@@ -19,11 +19,11 @@ object Consumer extends App {
   val rabbitConsumer = buildRabbitConsumer()
   val messageProcessor = buildMessageProcessor()
   val onMessage = (message: PaymentMessage) =>
-      for {
-        _ <- messageProcessor
-          .processMessage(message)
-          .handleErrorWith(t => Logger[IO].error(t)("Error occurred"))
-      } yield ()
+    for {
+      _ <- messageProcessor
+        .processMessage(message)
+        .handleErrorWith(t => Logger[IO].error(t)("Error occurred"))
+    } yield ()
 
   val task = rabbitConsumer.autoAckConsumer(QUEUE_NAME, onMessage)
 
@@ -43,7 +43,8 @@ object Consumer extends App {
     val RABBIT_PORT = ConfigFactory.load().getInt("rabbit.payment.port")
     val RABBIT_USER = ConfigFactory.load().getString("rabbit.payment.username")
     val RABBIT_PASS = ConfigFactory.load().getString("rabbit.payment.password")
-    RabbitMqClient[IO](RABBIT_HOST, RABBIT_USER, RABBIT_PASS, RABBIT_PORT)
+    val RABBIT_VHOST = ConfigFactory.load().getString("rabbit.vhost")
+    RabbitMqClient[IO](RABBIT_HOST, RABBIT_USER, RABBIT_PASS, RABBIT_VHOST, RABBIT_PORT)
   }
 
   private def buildMessageProcessor() = {
@@ -53,6 +54,7 @@ object Consumer extends App {
     val FRAUD_RABBIT_PORT = ConfigFactory.load().getInt("rabbit.antifraud.port")
     val FRAUD_RABBIT_USER = ConfigFactory.load().getString("rabbit.antifraud.username")
     val FRAUD_RABBIT_PASS = ConfigFactory.load().getString("rabbit.antifraud.password")
+    val RABBIT_VHOST = ConfigFactory.load().getString("rabbit.vhost")
 
     val MYSQL_MODELS_HOST = ConfigFactory.load().getString("mysql.models.host")
     val MYSQL_MODELS_PORT = ConfigFactory.load().getInt("mysql.models.port")
@@ -60,7 +62,8 @@ object Consumer extends App {
     val MYSQL_MODELS_PASSWORD = ConfigFactory.load().getString("mysql.models.password")
     val MYSQL_MODELS_SCHEMA = ConfigFactory.load().getString("mysql.models.schema")
 
-    val rabbitFraudPublisher = RabbitPublisher[IO](FRAUD_RABBIT_HOST, FRAUD_RABBIT_USER, FRAUD_RABBIT_PASS, FRAUD_RABBIT_PORT, "", FRAUD_QUEUE_NAME)
+    val rabbitFraudPublisher =
+      RabbitPublisher[IO](FRAUD_RABBIT_HOST, FRAUD_RABBIT_USER, FRAUD_RABBIT_PASS, RABBIT_VHOST, FRAUD_RABBIT_PORT, "", FRAUD_QUEUE_NAME)
     rabbitFraudPublisher.declareQueue()
 
     val sqlRepository = new SqlRepository[IO](MYSQL_MODELS_HOST, MYSQL_MODELS_PORT, MYSQL_MODELS_SCHEMA, MYSQL_MODELS_USER, MYSQL_MODELS_PASSWORD)

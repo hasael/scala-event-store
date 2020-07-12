@@ -14,9 +14,10 @@ object Publisher extends App {
     val RABBIT_PORT = ConfigFactory.load().getInt("rabbit.payment.port")
     val RABBIT_USER = ConfigFactory.load().getString("rabbit.payment.username")
     val RABBIT_PASS = ConfigFactory.load().getString("rabbit.payment.password")
+    val RABBIT_VHOST = ConfigFactory.load().getString("rabbit.vhost")
     val exchange = ""
 
-    val rabbitPublisher = RabbitPublisher[IO](RABBIT_HOST, RABBIT_USER, RABBIT_PASS, RABBIT_PORT, exchange, QUEUE_NAME)
+    val rabbitPublisher = RabbitPublisher[IO](RABBIT_HOST, RABBIT_USER, RABBIT_PASS, RABBIT_VHOST,RABBIT_PORT, exchange, QUEUE_NAME)
 
     rabbitPublisher.declareQueue()
 

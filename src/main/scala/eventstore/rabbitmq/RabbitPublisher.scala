@@ -4,12 +4,14 @@ import com.rabbitmq.client.ConnectionFactory
 import eventstore.domain.MessagePublisher
 import cats.effect.Sync
 
-class RabbitPublisher[F[_]:Sync](hostName: String, user: String, pass: String, port: Int, exchange: String, queueName: String) extends MessagePublisher[F] {
+class RabbitPublisher[F[_]: Sync](hostName: String, user: String, pass: String, vhost: String, port: Int, exchange: String, queueName: String)
+    extends MessagePublisher[F] {
   val factory = new ConnectionFactory()
   factory.setHost(hostName)
   factory.setPort(port)
   factory.setUsername(user)
   factory.setPassword(pass)
+  factory.setVirtualHost(vhost)
 
   val connection = factory.newConnection()
   val channel = connection.createChannel()
@@ -23,5 +25,14 @@ class RabbitPublisher[F[_]:Sync](hostName: String, user: String, pass: String, p
 }
 
 object RabbitPublisher {
-  def apply[F[_]:Sync](hostName: String, user: String, pass: String, port: Int, exchange: String, queueName: String): RabbitPublisher[F] = new RabbitPublisher[F](hostName, user, pass, port, exchange, queueName)
+  def apply[F[_]: Sync](
+      hostName: String,
+      user: String,
+      pass: String,
+      vhost: String,
+      port: Int,
+      exchange: String,
+      queueName: String
+  ): RabbitPublisher[F] =
+    new RabbitPublisher[F](hostName, user, pass, vhost, port, exchange, queueName)
 }
