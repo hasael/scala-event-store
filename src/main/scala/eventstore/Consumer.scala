@@ -1,6 +1,9 @@
 package eventstore
 
+import java.nio.file.Paths
+
 import cats.effect.{ContextShift, IO, Sync}
+import com.datastax.oss.driver.api.core.CqlSession
 import com.typesafe.config.ConfigFactory
 import eventstore.domain.{EventProcessor, MessageProcessor, PaymentMessage}
 import eventstore.parsers.EventParser
@@ -62,13 +65,24 @@ object Consumer extends App {
     val MYSQL_MODELS_PASSWORD = ConfigFactory.load().getString("mysql.models.password")
     val MYSQL_MODELS_SCHEMA = ConfigFactory.load().getString("mysql.models.schema")
 
+    val eventsUsername = ConfigFactory.load().getString("events.username")
+    val eventsPassword = ConfigFactory.load().getString("events.password")
+    val cloudSecurePath = ConfigFactory.load().getString("cassandra.secureConnectionPath")
+    val eventsKeyspace = ConfigFactory.load().getString("events.keyspace")
     val rabbitFraudPublisher =
       RabbitPublisher[IO](FRAUD_RABBIT_HOST, FRAUD_RABBIT_USER, FRAUD_RABBIT_PASS, RABBIT_VHOST, FRAUD_RABBIT_PORT, "", FRAUD_QUEUE_NAME)
     rabbitFraudPublisher.declareQueue()
 
-    val sqlRepository = new SqlRepository[IO](MYSQL_MODELS_HOST, MYSQL_MODELS_PORT, MYSQL_MODELS_SCHEMA, MYSQL_MODELS_USER, MYSQL_MODELS_PASSWORD)
+    val session = CqlSession
+      .builder()
+      .withCloudSecureConnectBundle(Paths.get(cloudSecurePath))
+      .withAuthCredentials(eventsUsername, eventsPassword)
+      .withKeyspace(eventsKeyspace)
+      .build()
 
-    val eventProcessor = new EventProcessor[IO](new CassandraRepository(), sqlRepository, rabbitFraudPublisher)
+    val sqlRepository = new SqlRepository[IO](MYSQL_MODELS_HOST, MYSQL_MODELS_PORT, MYSQL_MODELS_SCHEMA, MYSQL_MODELS_USER, MYSQL_MODELS_PASSWORD)
+    val cassandraRepository = new CassandraRepository[IO](session)
+    val eventProcessor = new EventProcessor[IO](cassandraRepository, sqlRepository, rabbitFraudPublisher)
 
     val eventParser = EventParser()
 
