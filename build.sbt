@@ -10,7 +10,6 @@ lazy val root = (project in file("."))
   .settings(
     name := "scala-event-store",
     libraryDependencies += scalaTest % Test,
-    libraryDependencies += "com.rabbitmq" % "amqp-client" % "5.8.0",
     libraryDependencies += "com.typesafe.play" %% "play-json" % playVersion,
     libraryDependencies += "mysql" % "mysql-connector-java" % "8.0.20",
     libraryDependencies += "org.typelevel" %% "cats-core" % "2.0.0",

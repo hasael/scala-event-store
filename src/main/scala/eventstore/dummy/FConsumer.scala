@@ -36,7 +36,6 @@ object FConsumer extends App {
 
   private def buildMessageProcessor(): MessageProcessor[IO] = {
     val rabbitFraudPublisher = new FMessagePublisher[IO]()
-    rabbitFraudPublisher.declareQueue()
 
     val sqlRepository = new FModelsRepository[IO]()
     val eventParser = EventParser()

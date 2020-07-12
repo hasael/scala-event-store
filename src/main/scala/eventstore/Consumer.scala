@@ -69,9 +69,10 @@ object Consumer extends App {
     val eventsPassword = ConfigFactory.load().getString("events.password")
     val cloudSecurePath = ConfigFactory.load().getString("cassandra.secureConnectionPath")
     val eventsKeyspace = ConfigFactory.load().getString("events.keyspace")
+
+    val client = RabbitMqClient[IO](FRAUD_RABBIT_HOST, FRAUD_RABBIT_USER, FRAUD_RABBIT_PASS, RABBIT_VHOST, FRAUD_RABBIT_PORT)
     val rabbitFraudPublisher =
-      RabbitPublisher[IO](FRAUD_RABBIT_HOST, FRAUD_RABBIT_USER, FRAUD_RABBIT_PASS, RABBIT_VHOST, FRAUD_RABBIT_PORT, "", FRAUD_QUEUE_NAME)
-    rabbitFraudPublisher.declareQueue()
+      RabbitPublisher[IO](client, FRAUD_QUEUE_NAME, "")
 
     val session = CqlSession
       .builder()

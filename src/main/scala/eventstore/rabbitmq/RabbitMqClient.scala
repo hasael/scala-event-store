@@ -7,7 +7,7 @@ import cats.effect.{Blocker, ConcurrentEffect, ContextShift, Resource}
 import cats.implicits._
 import dev.profunktor.fs2rabbit.config.{Fs2RabbitConfig, Fs2RabbitNodeConfig}
 import dev.profunktor.fs2rabbit.interpreter.RabbitClient
-import dev.profunktor.fs2rabbit.model.{AmqpEnvelope, QueueName}
+import dev.profunktor.fs2rabbit.model.{AmqpEnvelope, ExchangeName, QueueName, RoutingKey}
 import eventstore.domain.{PaymentMessage, QueueClient}
 import fs2.Pipe
 
@@ -59,6 +59,16 @@ class RabbitMqClient[F[_]: ConcurrentEffect: ContextShift](
 
   private def toPaymentMessage[F[_]]: Pipe[F, AmqpEnvelope[String], PaymentMessage] = in => {
     in.map(ack => PaymentMessage(ack.payload))
+  }
+
+  def publish(message: String, exchangeName: String, routingKey: String): F[Unit] = {
+    blockerResource.use { blocker =>
+      ConcurrentEffect[F].flatMap(RabbitClient[F](config, blocker))(client =>
+        client.createConnectionChannel.use { implicit channel =>
+          client.createPublisher[String](ExchangeName(exchangeName), RoutingKey(routingKey)).flatMap(p => p(message))
+        }
+      )
+    }
   }
 }
 
