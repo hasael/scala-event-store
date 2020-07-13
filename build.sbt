@@ -21,5 +21,7 @@ lazy val root = (project in file("."))
     libraryDependencies += "dev.profunktor" %% "fs2-rabbit-circe" % "2.1.1",
     libraryDependencies += "com.datastax.oss" % "java-driver-core" % datastaxDriverVersion,
     libraryDependencies += "com.datastax.oss" % "java-driver-query-builder" % datastaxDriverVersion,
-    libraryDependencies += "com.datastax.oss" % "java-driver-mapper-runtime" % datastaxDriverVersion
+    libraryDependencies += "com.datastax.oss" % "java-driver-mapper-runtime" % datastaxDriverVersion,
+    libraryDependencies += "com.github.pureconfig" %% "pureconfig" % "0.13.0",
+    libraryDependencies += "com.github.pureconfig" %% "pureconfig-cats-effect" % "0.13.0"
   )
