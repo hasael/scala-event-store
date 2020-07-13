@@ -1,79 +1,85 @@
 package eventstore
 
-import cats.effect.{ContextShift, IO, Sync}
-import com.typesafe.config.ConfigFactory
-import eventstore.domain.{EventProcessor, MessageProcessor}
+import java.nio.file.Paths
+import cats.implicits._
+import cats.effect.{ExitCode, IO, IOApp, Sync}
+import com.datastax.oss.driver.api.core.CqlSession
+import eventstore.config.{CassandraConfig, Config, MySqlConfig, RabbitConfig}
+import eventstore.domain.{EventProcessor, MessageProcessor, PaymentMessage}
 import eventstore.parsers.EventParser
-import eventstore.rabbitmq.{RabbitConsumer, RabbitPublisher}
+import eventstore.rabbitmq.{RabbitMqClient, RabbitPublisher}
 import eventstore.repositories.{CassandraRepository, SqlRepository}
 import io.chrisdavenport.log4cats.Logger
 import io.chrisdavenport.log4cats.slf4j.Slf4jLogger
+import pureconfig.ConfigSource
+import pureconfig.generic.auto._
 
-import scala.concurrent.ExecutionContext
-
-object Consumer {
+object Consumer extends IOApp {
   implicit def unsafeLogger[F[_]: Sync] = Slf4jLogger.getLogger[F]
-  implicit val contextShift: ContextShift[IO] = IO.contextShift(ExecutionContext.global)
 
-  val QUEUE_NAME = ConfigFactory.load().getString("rabbit.payment.queue")
-  val rabbitConsumer = buildRabbitConsumer(QUEUE_NAME)
-
-  val messageProcessor = buildMessageProcessor()
-
-  val onMessage = (message: String) =>
-    {
+  override def run(args: List[String]): IO[ExitCode] = {
+    val run = for {
+      config <- loadConfig()
+      task <- startConsumer(config) >> IO(ExitCode.Success)
+    } yield task
+    run.handleErrorWith(t => Logger[IO].error(t)("Fatal error occurred") >> IO(ExitCode.Error))
+  }
+  private def startConsumer(config: Config): IO[Unit] = {
+    val rabbitConsumer = buildRabbitConsumer(config.rabbitPaymentConfig)
+    val messageProcessor = buildMessageProcessor(config.rabbitFraundConfig, config.mySqlConfig, config.cassandraConfig)
+    val onMessage = (message: PaymentMessage) =>
       for {
         _ <- messageProcessor
           .processMessage(message)
           .handleErrorWith(t => Logger[IO].error(t)("Error occurred"))
       } yield ()
-    }.unsafeRunSync()
 
-  val onCancel = (consumerTag: String) => {}
-
-  rabbitConsumer.startConsumer(QUEUE_NAME, autoAck = true, onMessage, onCancel)
-
-  while (true) {
-    // we don't want to kill the receiver,
-    // so we keep him alive waiting for more messages
-    Thread.sleep(1000)
-  }
-  rabbitConsumer.onClose()
-
-  private def buildRabbitConsumer(queueName: String): RabbitConsumer = {
-    println(s"Creating consumer for messages on $queueName")
-    val RABBIT_HOST = ConfigFactory.load().getString("rabbit.payment.host")
-    val RABBIT_PORT = ConfigFactory.load().getInt("rabbit.payment.port")
-    val RABBIT_USER = ConfigFactory.load().getString("rabbit.payment.username")
-    val RABBIT_PASS = ConfigFactory.load().getString("rabbit.payment.password")
-    val rabbitConsumer = RabbitConsumer(RABBIT_HOST, RABBIT_USER, RABBIT_PASS, RABBIT_PORT, "", queueName)
-    rabbitConsumer.declareQueue()
     rabbitConsumer
+      .autoAckConsumer(config.rabbitPaymentConfig.queue, onMessage)
   }
 
-  private def buildMessageProcessor() = {
+  private def loadConfig(): IO[Config] = {
+    val config = for {
+      rabbitPaymentConfig <- ConfigSource.default.at("rabbit-payment").load[RabbitConfig]
+      rabbitFraudConfig <- ConfigSource.default.at("rabbit-antifraud").load[RabbitConfig]
+      mySqlConfig <- ConfigSource.default.at("mysql-models").load[MySqlConfig]
+      cassandraConfig <- ConfigSource.default.at("cassandra").load[CassandraConfig]
+    } yield (Config(rabbitPaymentConfig, rabbitFraudConfig, mySqlConfig, cassandraConfig))
 
-    val FRAUD_QUEUE_NAME = ConfigFactory.load().getString("rabbit.antifraud.queue")
-    val FRAUD_RABBIT_HOST = ConfigFactory.load().getString("rabbit.antifraud.host")
-    val FRAUD_RABBIT_PORT = ConfigFactory.load().getInt("rabbit.antifraud.port")
-    val FRAUD_RABBIT_USER = ConfigFactory.load().getString("rabbit.antifraud.username")
-    val FRAUD_RABBIT_PASS = ConfigFactory.load().getString("rabbit.antifraud.password")
+    IO.fromEither(config.leftMap(c => new Throwable(s"Config error ${c.prettyPrint()}")))
+  }
 
-    val MYSQL_MODELS_HOST = ConfigFactory.load().getString("mysql.models.host")
-    val MYSQL_MODELS_PORT = ConfigFactory.load().getInt("mysql.models.port")
-    val MYSQL_MODELS_USER = ConfigFactory.load().getString("mysql.models.username")
-    val MYSQL_MODELS_PASSWORD = ConfigFactory.load().getString("mysql.models.password")
-    val MYSQL_MODELS_SCHEMA = ConfigFactory.load().getString("mysql.models.schema")
+  private def buildRabbitConsumer(rabbitConfig: RabbitConfig): RabbitMqClient[IO] = {
+    //println(s"Creating consumer for messages on $queueName")
+    RabbitMqClient[IO](rabbitConfig.host, rabbitConfig.username, rabbitConfig.password, rabbitConfig.vhost, rabbitConfig.port)
+  }
 
-    val rabbitFraudPublisher = RabbitPublisher[IO](FRAUD_RABBIT_HOST, FRAUD_RABBIT_USER, FRAUD_RABBIT_PASS, FRAUD_RABBIT_PORT, "", FRAUD_QUEUE_NAME)
-    rabbitFraudPublisher.declareQueue()
+  private def buildMessageProcessor(rabbitFraudConfig: RabbitConfig, mySqlConfig: MySqlConfig, cassandraConfig: CassandraConfig) = {
 
-    val sqlRepository = new SqlRepository[IO](MYSQL_MODELS_HOST, MYSQL_MODELS_PORT, MYSQL_MODELS_SCHEMA, MYSQL_MODELS_USER, MYSQL_MODELS_PASSWORD)
+    val client = RabbitMqClient[IO](
+      rabbitFraudConfig.host,
+      rabbitFraudConfig.username,
+      rabbitFraudConfig.password,
+      rabbitFraudConfig.vhost,
+      rabbitFraudConfig.port
+    )
+    val rabbitFraudPublisher =
+      RabbitPublisher[IO](client, rabbitFraudConfig.queue, "")
 
-    val eventProcessor = new EventProcessor[IO](new CassandraRepository(), sqlRepository, rabbitFraudPublisher)
+    val session = CqlSession
+      .builder()
+      .withCloudSecureConnectBundle(Paths.get(cassandraConfig.secureConnectionPath))
+      .withAuthCredentials(cassandraConfig.username, cassandraConfig.password)
+      .withKeyspace(cassandraConfig.keyspace)
+      .build()
+
+    val sqlRepository = new SqlRepository[IO](mySqlConfig.host, mySqlConfig.port, mySqlConfig.schema, mySqlConfig.username, mySqlConfig.password)
+    val cassandraRepository = new CassandraRepository[IO](session)
+    val eventProcessor = new EventProcessor[IO](cassandraRepository, sqlRepository, rabbitFraudPublisher)
 
     val eventParser = EventParser()
 
     MessageProcessor(eventParser, eventProcessor)
   }
+
 }

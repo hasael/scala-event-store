@@ -1,13 +1,12 @@
 package eventstore.dummy
 
-import java.util.concurrent.Executors
-
 import cats.effect.IO._
 import cats.effect.{IO, Sync, _}
-import eventstore.domain.{EventProcessor, MessageProcessor}
+import eventstore.domain.{EventProcessor, MessageProcessor, PaymentMessage}
 import eventstore.parsers.EventParser
 import io.chrisdavenport.log4cats.Logger
 import io.chrisdavenport.log4cats.slf4j.Slf4jLogger
+import fs2.Stream
 
 import scala.concurrent.ExecutionContext
 
@@ -15,11 +14,10 @@ object FConsumer extends App {
   implicit def unsafeLogger[F[_]: Sync] = Slf4jLogger.getLogger[F]
   implicit val contextShift: ContextShift[IO] = IO.contextShift(ExecutionContext.Implicits.global)
 
-  val rabbitConsumer = new FQueueConsumer()
-  rabbitConsumer.declareQueue()
+  val rabbitConsumer = new FQueueClient()
   val messageProcessor = buildMessageProcessor()
 
-  val onMessage = (message: String) =>
+  val onMessage = (message: PaymentMessage) =>
     {
       for {
         _ <- messageProcessor
@@ -28,14 +26,7 @@ object FConsumer extends App {
       } yield ()
     }.unsafeRunSync()
 
-  val onCancel = (consumerTag: String) => {}
-
-  rabbitConsumer.startConsumer(
-    "",
-    autoAck = true,
-    onMessage,
-    onCancel
-  )
+  val task = rabbitConsumer.autoAckConsumer("QUEUE_NAME", onMessage)
 
   while (true) {
     // we don't want to kill the receiver,
@@ -45,7 +36,6 @@ object FConsumer extends App {
 
   private def buildMessageProcessor(): MessageProcessor[IO] = {
     val rabbitFraudPublisher = new FMessagePublisher[IO]()
-    rabbitFraudPublisher.declareQueue()
 
     val sqlRepository = new FModelsRepository[IO]()
     val eventParser = EventParser()
